@@ -101,7 +101,8 @@ function clean(recipe: RecipeDto): RecipeDto {
 const submitted = ref(false)
 const errors = computed<Record<string, string>>(() => {
   if (!submitted.value || !draft.value) return {}
-  const parsed = RecipeSchema.safeParse(clean(draft.value))
+  // Вместо: RecipeSchema.safeParse(clean(draft.value))
+  const parsed = RecipeSchema.safeParse(draft.value)
   if (parsed.success) return {}
   const map: Record<string, string> = {}
   for (const issue of parsed.error.issues) {
