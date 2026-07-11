@@ -1,0 +1,5 @@
+// Этот файл preload-ится в каждый <style lang="scss"> через vite.config.ts
+// (additionalData). Держим тут ТОЛЬКО то, что не печатает CSS: переменные,
+// миксины, функции. Реальные глобальные стили/резеты — в index.scss.
+@forward 'common/variables';
+@forward 'common/mixins';

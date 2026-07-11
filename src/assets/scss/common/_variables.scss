@@ -1,0 +1,56 @@
+// ─────────────────────────────────────────────────────────────
+// Дизайн-токены. Стиль — Studio Ghibli: тёплая акварель, мягкий
+// свет, воздух. Цвета берём ТОЛЬКО отсюда; нужного нет — расширяем.
+// ─────────────────────────────────────────────────────────────
+
+// Поверхности / фон
+$color-page-bg: #f6f1e7; // тёплый кремовый пергамент
+$color-page-bg-2: #eaf3ef; // лёгкая мятная дымка (для градиента неба)
+$color-surface: #fffdf8; // карточка — почти белый крем
+$color-surface-2: #f3ede0; // вложенная поверхность
+$color-border: #e6ddca; // мягкая песочная граница
+
+// Текст
+$color-text: #3f362b; // тёплый тёмно-коричневый (не чёрный)
+$color-heading: #2f2820;
+$color-muted: #9b8f7a; // приглушённый песочный
+
+// Акценты (Ghibli-палитра)
+$color-sky: #7fb4d8; // небесно-голубой
+$color-sky-dim: #dcecf6;
+$color-meadow: #8bbf6f; // луговая зелень
+$color-meadow-dim: #e3f0d8;
+$color-sun: #f2c14e; // тёплое солнце / золото
+$color-sun-dim: #fbeecb;
+$color-peach: #f0a988; // персиковый закат
+$color-peach-dim: #fbe3d6;
+$color-lavender: #b8a6d9; // сумеречная лаванда
+$color-lavender-dim: #ece5f5;
+
+// Семантика (переиспользуемые роли — на них ссылается UI)
+$color-accent: $color-sky;
+$color-accent-dim: $color-sky-dim;
+$color-success: $color-meadow;
+$color-danger: #d98a72; // мягкий терракот вместо агрессивного красного
+$color-favorite: $color-peach; // сердечко
+
+// Радиусы
+$radius-sm: 8px;
+$radius: 14px;
+$radius-lg: 20px;
+$radius-pill: 999px;
+
+// Тени — мягкий рассеянный свет, без резкости
+$shadow-soft: 0 4px 16px rgba(63, 54, 43, 0.08);
+$shadow-card: 0 6px 20px rgba(63, 54, 43, 0.1);
+$shadow-float: 0 10px 30px rgba(63, 54, 43, 0.14);
+
+// Анимации
+$anim-fast: 0.18s;
+$anim: 0.28s;
+$anim-slow: 0.5s;
+$ease-soft: cubic-bezier(0.34, 1.56, 0.64, 1); // лёгкий «оживший» отскок
+
+// Раскладка
+$content-max: 720px; // мобильный контейнер
+$gap: 16px;

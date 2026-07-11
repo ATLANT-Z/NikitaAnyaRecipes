@@ -1,0 +1,79 @@
+@use 'sass:color';
+@use 'variables' as *;
+
+// Плавный переход по умолчанию
+@mixin anim($props: all, $dur: $anim) {
+  transition: $props $dur $ease-soft;
+}
+
+// Карточка-«крем»: мягкая поверхность + свет
+@mixin card($radius: $radius, $shadow: $shadow-card) {
+  background: $color-surface;
+  border-radius: $radius;
+  box-shadow: $shadow;
+}
+
+// Акварельный градиент-небо для фона страницы
+@mixin watercolor-sky {
+  background:
+    radial-gradient(120% 80% at 80% -10%, $color-sky-dim 0%, transparent 55%),
+    radial-gradient(100% 70% at -10% 0%, $color-sun-dim 0%, transparent 50%),
+    linear-gradient(180deg, $color-page-bg-2 0%, $color-page-bg 40%);
+}
+
+// Пилюля-бейдж (категория/время)
+@mixin pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: $radius-pill;
+  padding: 4px 12px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+// Обрезка текста в N строк
+@mixin clamp-lines($n: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $n;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Скрытый, но доступный скринридерам
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Мягкий кастомный скроллбар
+@mixin scrollbar($w: 6px) {
+  scrollbar-width: thin;
+  scrollbar-color: $color-border transparent;
+  &::-webkit-scrollbar {
+    width: $w;
+    height: $w;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $color-border;
+    border-radius: $radius-pill;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+// Safe-area (Telegram / iOS вырезы)
+@mixin safe-top($extra: 0px) {
+  padding-top: calc(env(safe-area-inset-top, 0px) + #{$extra});
+}
+@mixin safe-bottom($extra: 0px) {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + #{$extra});
+}
