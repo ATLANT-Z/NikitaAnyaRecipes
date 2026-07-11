@@ -136,6 +136,7 @@ async function onSave() {
 
   const cleaned = clean(draft.value!)
   await save(cleaned)
+  debugger
   notifications.success(isNew ? 'Рецепт создан' : 'Сохранено')
   router.replace({ name: 'recipe', params: { id: cleaned.id } })
 }

@@ -6,6 +6,7 @@ import type {
   StorageDto,
   SubstitutionDto,
 } from '@/api/recipes/resources/recipe.resource'
+import { toRaw } from 'vue'
 
 // Фабрики пустых сущностей для редактора. id генерим через uuid (не randomUUID).
 export class RecipeFactory {
@@ -50,6 +51,6 @@ export class RecipeFactory {
 
   // Глубокая копия — редактор правит черновик, не трогая кэш до сохранения.
   static clone(recipe: RecipeDto): RecipeDto {
-    return structuredClone(recipe)
+    return structuredClone(toRaw(recipe))
   }
 }
