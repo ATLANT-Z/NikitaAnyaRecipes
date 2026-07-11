@@ -64,4 +64,21 @@ export class RecipesApi extends BaseApi {
       ErrorHelper.map(SE._401('Нужно войти как админ'), SE._403('Недостаточно прав')),
     )
   }
+
+  // Загрузка обложки — через Edge Function (service_role заливает в Storage).
+  async uploadCover(payload: {
+    path: string
+    contentType: string
+    dataBase64: string
+  }): Promise<string> {
+    const res = await this._fn<{ url: string }>('cover-upload', payload).catch(
+      ErrorHelper.map(
+        SE._401('Нужно войти как админ'),
+        SE._403('Недостаточно прав'),
+        SE._413('Файл слишком большой (до 5 МБ)'),
+        SE._422('Не удалось обработать изображение'),
+      ),
+    )
+    return res.url
+  }
 }

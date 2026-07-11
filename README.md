@@ -68,7 +68,7 @@ supabase link --project-ref <ID-проекта>   # ID виден в URL даш�
 supabase secrets set TELEGRAM_BOT_TOKEN=<токен_бота>
 supabase secrets set ADMIN_SECRET=<секретный_ключ_админа>
 
-supabase functions deploy bot recipe-upsert recipe-delete verify-admin --no-verify-jwt
+supabase functions deploy bot recipe-upsert recipe-delete verify-admin cover-upload --no-verify-jwt
 ```
 
 ### 6. Включить вебхук бота

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, Plus, Trash2, Check } from 'lucide-vue-next'
+import { ChevronLeft, Plus, Trash2, Check, Loader2 } from 'lucide-vue-next'
 import type { RecipeDto } from '@/api/recipes/resources/recipe.resource'
 import { recipesRepository } from '@/repository/recipes.repository'
 import { RecipeFactory } from '@/features/recipes/lib/recipe-factory'
@@ -9,7 +9,10 @@ import { RecipeSchema, firstIssue } from '@/features/recipes/forms/recipe.form'
 import { useRecipeSave } from '@/features/recipes/model/useRecipeSave'
 import { useCategories } from '@/features/categories/model/useCategories'
 import { useNotificationsStore } from '@/_shared/stores/notifications'
+import { useHandleError } from '@/_shared/composables/useHandleError'
 import { useModals } from '@/services/modal.service'
+import { TelegramHelper } from '@/_shared/telegram/telegram'
+import { isSupabaseConfigured } from '@/_shared/supabase/isConfigured'
 import AppScreen from '@/shared/ui/AppScreen.vue'
 import AppHeader from '@/shared/ui/AppHeader.vue'
 import IconButton from '@/shared/ui/IconButton.vue'
@@ -20,6 +23,7 @@ import Skeleton from '@/shared/ui/Skeleton.vue'
 const route = useRoute()
 const router = useRouter()
 const notifications = useNotificationsStore()
+const { handleError } = useHandleError()
 const modals = useModals()
 const { categories } = useCategories()
 const { save, remove, isSaving } = useRecipeSave()
@@ -72,6 +76,12 @@ function addStorage(si: number) {
 function removeStorage(si: number, i: number) {
   draft.value!.sections[si].storage.splice(i, 1)
 }
+function addKbju(si: number) {
+  draft.value!.sections[si].kbju = RecipeFactory.kbju()
+}
+function removeKbju(si: number) {
+  draft.value!.sections[si].kbju = null
+}
 
 // Убираем пустые строки перед сохранением.
 function clean(recipe: RecipeDto): RecipeDto {
@@ -86,6 +96,15 @@ function clean(recipe: RecipeDto): RecipeDto {
 }
 
 async function onSave() {
+  // Запись идёт через Edge Function, которая проверяет подписанный Telegram
+  // initData + права админа. С обычного сайта (в т.ч. с ?admin=1 — это лишь
+  // превью edit-режима) подписи нет, поэтому сохранение сервер отклонит.
+  // Сообщаем об этом прямо, а не глухой ошибкой edge-функции.
+  if (isSupabaseConfigured && !TelegramHelper.isTelegram) {
+    notifications.error('Сохранять рецепты можно только из приложения в Telegram')
+    return
+  }
+
   const cleaned = clean(draft.value!)
   const parsed = RecipeSchema.safeParse(cleaned)
   if (!parsed.success) {
@@ -112,8 +131,31 @@ async function onDelete() {
   router.replace({ name: 'home' })
 }
 
-function onCoverClick() {
-  notifications.info('Загрузка обложек появится вместе с подключением Supabase')
+const coverInput = ref<HTMLInputElement | null>(null)
+const isUploadingCover = ref(false)
+
+function pickCover() {
+  if (isSupabaseConfigured && !TelegramHelper.isTelegram) {
+    notifications.error('Загрузка обложек доступна только из приложения в Telegram')
+    return
+  }
+  coverInput.value?.click()
+}
+
+async function onCoverPick(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = '' // сбрасываем — чтобы повторный выбор того же файла сработал
+  if (!file || !draft.value) return
+
+  isUploadingCover.value = true
+  try {
+    draft.value.cover_url = await recipesRepository.uploadCover(draft.value.id, file)
+  } catch (err) {
+    handleError(err)
+  } finally {
+    isUploadingCover.value = false
+  }
 }
 </script>
 
@@ -139,15 +181,32 @@ function onCoverClick() {
     </div>
 
     <div v-else class="editor">
-      <!-- Обложка (загрузка — позже, docs/tech-debt.md #3) -->
-      <button type="button" class="editor__cover" @click="onCoverClick">
+      <!-- Обложка -->
+      <button
+        type="button"
+        class="editor__cover"
+        :disabled="isUploadingCover"
+        @click="pickCover"
+      >
         <ImagePlaceholder
           :src="draft.cover_url"
           tone="neutral"
           hint="Нажмите, чтобы добавить фото"
         />
-        <span class="editor__cover-badge"><Plus :size="18" /> Обложка</span>
+        <span class="editor__cover-badge">
+          <Plus :size="18" /> {{ draft.cover_url ? 'Заменить' : 'Обложка' }}
+        </span>
+        <span v-if="isUploadingCover" class="editor__cover-loading">
+          <Loader2 :size="28" class="editor__cover-spin" />
+        </span>
       </button>
+      <input
+        ref="coverInput"
+        type="file"
+        accept="image/*"
+        hidden
+        @change="onCoverPick"
+      />
 
       <!-- Название / категория / время -->
       <div class="smart-field">
@@ -223,7 +282,7 @@ function onCoverClick() {
         <AppButton variant="dashed" block @click="addSub(si)"><Plus :size="16" /> Замена</AppButton>
 
         <!-- Мета -->
-        <p class="ed-section__caption">Порция и КБЖУ</p>
+        <p class="ed-section__caption">Порция и стоимость</p>
         <div class="editor__row">
           <div class="smart-field editor__row-grow">
             <span class="smart-field__label">Порция</span>
@@ -234,24 +293,40 @@ function onCoverClick() {
             <input v-model.number="s.cost" type="number" min="0" inputmode="numeric" />
           </div>
         </div>
+
+        <!-- КБЖУ — по желанию -->
+        <div class="ed-kbju-head">
+          <p class="ed-section__caption">КБЖУ</p>
+          <button
+            v-if="s.kbju"
+            type="button"
+            class="ed-kbju-head__remove"
+            @click="removeKbju(si)"
+          >
+            Убрать
+          </button>
+        </div>
         <div v-if="s.kbju" class="ed-kbju">
           <div class="smart-field">
-            <span class="smart-field__label">К</span
-            ><input v-model.number="s.kbju.cal" type="number" />
+            <span class="smart-field__label">К</span>
+            <input v-model.number="s.kbju.cal" type="number" min="0" inputmode="numeric" />
           </div>
           <div class="smart-field">
-            <span class="smart-field__label">Б</span
-            ><input v-model.number="s.kbju.prot" type="number" />
+            <span class="smart-field__label">Б</span>
+            <input v-model.number="s.kbju.prot" type="number" min="0" inputmode="numeric" />
           </div>
           <div class="smart-field">
-            <span class="smart-field__label">Ж</span
-            ><input v-model.number="s.kbju.fat" type="number" />
+            <span class="smart-field__label">Ж</span>
+            <input v-model.number="s.kbju.fat" type="number" min="0" inputmode="numeric" />
           </div>
           <div class="smart-field">
-            <span class="smart-field__label">У</span
-            ><input v-model.number="s.kbju.carb" type="number" />
+            <span class="smart-field__label">У</span>
+            <input v-model.number="s.kbju.carb" type="number" min="0" inputmode="numeric" />
           </div>
         </div>
+        <AppButton v-else variant="dashed" block @click="addKbju(si)">
+          <Plus :size="16" /> Добавить КБЖУ
+        </AppButton>
 
         <!-- Шаги -->
         <p class="ed-section__caption">Шаги</p>
@@ -289,9 +364,9 @@ function onCoverClick() {
         </AppButton>
       </section>
 
-      <AppButton variant="soft" block @click="addSection"
-        ><Plus :size="18" /> Добавить секцию</AppButton
-      >
+      <AppButton variant="soft" block @click="addSection">
+        <Plus :size="18" /> Добавить секцию
+      </AppButton>
 
       <!-- Сохранить -->
       <div class="editor__save">
@@ -334,6 +409,18 @@ function onCoverClick() {
       background: rgba(255, 253, 248, 0.9);
       font-weight: 700;
       font-size: 13px;
+    }
+    &-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 253, 248, 0.6);
+      color: $color-accent;
+    }
+    &-spin {
+      animation: cover-spin 1s linear infinite;
     }
   }
 
@@ -426,9 +513,32 @@ function onCoverClick() {
   }
 }
 
+@keyframes cover-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .ed-kbju {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
+}
+.ed-kbju-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+
+  &__remove {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 700;
+    color: $color-muted;
+    @include anim(color);
+    &:hover {
+      color: $color-danger;
+    }
+  }
 }
 </style>

@@ -1,6 +1,9 @@
 // Глобальные резеты и базовая типографика. Импортируется один раз в main.ts.
 // Переменные/миксины доступны благодаря preload (style.scss).
 
+// Глобальные стили полей форм (см. комментарий в _forms.scss).
+@use 'common/forms';
+
 @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap');
 
 * {

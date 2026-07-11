@@ -8,6 +8,7 @@ export enum ServerErrors {
   Forbidden = 403,
   NotFound = 404,
   Conflict = 409,
+  PayloadTooLarge = 413,
   UnprocessableEntity = 422,
   InternalServerError = 500,
 }
@@ -64,6 +65,7 @@ export class ErrorHelper {
     _403: (msg: string) => ErrorHelper.create(ServerErrors.Forbidden, msg),
     _404: (msg: string) => ErrorHelper.create(ServerErrors.NotFound, msg),
     _409: (msg: string) => ErrorHelper.create(ServerErrors.Conflict, msg),
+    _413: (msg: string) => ErrorHelper.create(ServerErrors.PayloadTooLarge, msg),
     _422: (msg: string) => ErrorHelper.create(ServerErrors.UnprocessableEntity, msg),
     _500: (msg: string) => ErrorHelper.create(ServerErrors.InternalServerError, msg),
   }

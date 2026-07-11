@@ -15,10 +15,11 @@
 - **Почему:** Edge Functions ещё не задеплоены (нужен Supabase проект + токен бота).
 - **Как поправить:** задеплоить функции из `supabase/functions/`, включить реальные вызовы. Код функций уже написан — только деплой + секреты.
 
-### [ ] 3. Загрузка обложек рецептов — заглушка
-- **Где:** форма рецепта, поле обложки.
-- **Почему:** нет Storage-бакета (Supabase).
-- **Как поправить:** подключить `supabase.storage`, заливать в бакет `recipe-covers`, сохранять public URL. Пока картинка = `div.image-ph` с цветом-заглушкой (легко заменить на `<img>` с тем же классом).
+### [x] 3. Загрузка обложек рецептов
+- Закрыто: Edge Function `cover-upload` (проверка админа + service_role) заливает в
+  бакет `recipe-covers` и отдаёт public URL. Фронт — пикер в `RecipeEditor.vue`
+  (`recipesRepository.uploadCover`), без бэкенда — локальный `URL.createObjectURL`.
+  Нужен деплой функции `cover-upload` (см. README, шаг 5).
 
 ### [x] 4. Sass legacy-js-api deprecation warning при build
 - Закрыто: включён `css.preprocessorOptions.scss.api = 'modern-compiler'` в `vite.config.ts`.

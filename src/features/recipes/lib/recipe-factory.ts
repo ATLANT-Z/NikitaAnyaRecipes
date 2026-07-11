@@ -25,12 +25,17 @@ export class RecipeFactory {
       sort_order: sortOrder,
       servings: '',
       cost: null,
-      kbju: { cal: 0, prot: 0, fat: 0, carb: 0 },
+      kbju: null, // КБЖУ — по желанию, добавляется в редакторе
       ingredients: [RecipeFactory.ingredient()],
       substitutions: [],
       steps: [''],
       storage: [],
     }
+  }
+
+  // Пустой КБЖУ — когда пользователь решил его заполнить.
+  static kbju(): NonNullable<SectionDto['kbju']> {
+    return { cal: 0, prot: 0, fat: 0, carb: 0 }
   }
   static recipe(categorySlug: string): RecipeDto {
     return {
