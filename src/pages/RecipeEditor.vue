@@ -123,20 +123,22 @@ async function onSave() {
     document
       .querySelector('.ui-errors')
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+    // 👇 ВОТ ЭТОГО НЕ ХВАТАЛО. Возвращаем форму в рабочее состояние.
+    submitted.value = false
     return
   }
 
-  // Форма валидна. Запись идёт через Edge Function, которая проверяет подписанный
-  // Telegram initData + права админа. С обычного сайта (в т.ч. с ?admin=1 — это
-  // лишь превью edit-режима) подписи нет, поэтому сохранение сервер отклонит.
+  // Форма валидна. Запись идёт через Edge Function...
   if (isSupabaseConfigured && !TelegramHelper.isTelegram) {
     notifications.error('Сохранять рецепты можно только из приложения в Telegram')
+    // 👇 И здесь тоже сбрасываем, чтобы юзер мог исправить ситуацию или зайти с нужного устройства
+    submitted.value = false
     return
   }
 
   const cleaned = clean(draft.value!)
   await save(cleaned)
-  debugger
   notifications.success(isNew ? 'Рецепт создан' : 'Сохранено')
   router.replace({ name: 'recipe', params: { id: cleaned.id } })
 }
