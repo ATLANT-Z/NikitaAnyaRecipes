@@ -101,9 +101,10 @@ function clean(recipe: RecipeDto): RecipeDto {
 const submitted = ref(false)
 const errors = computed<Record<string, string>>(() => {
   if (!submitted.value || !draft.value) return {}
-  // Вместо: RecipeSchema.safeParse(clean(draft.value))
+
   const parsed = RecipeSchema.safeParse(draft.value)
   if (parsed.success) return {}
+
   const map: Record<string, string> = {}
   for (const issue of parsed.error.issues) {
     const key = issue.path.join('.')
@@ -118,23 +119,17 @@ function fieldError(...parts: (string | number)[]): string | undefined {
 async function onSave() {
   submitted.value = true
 
-  // Сначала — валидность формы (инлайн-ошибки уже видны через computed).
-  if (Object.keys(errors.value).length) {
-    await nextTick()
-    document
-      .querySelector('.ui-errors')
-      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  await nextTick()
 
-    // 👇 ВОТ ЭТОГО НЕ ХВАТАЛО. Возвращаем форму в рабочее состояние.
-    submitted.value = false
+  if (Object.keys(errors.value).length) {
+    document
+      .querySelector('.ui-errors, .ed-error')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     return
   }
 
-  // Форма валидна. Запись идёт через Edge Function...
   if (isSupabaseConfigured && !TelegramHelper.isTelegram) {
     notifications.error('Сохранять рецепты можно только из приложения в Telegram')
-    // 👇 И здесь тоже сбрасываем, чтобы юзер мог исправить ситуацию или зайти с нужного устройства
-    submitted.value = false
     return
   }
 
@@ -210,12 +205,7 @@ async function onCoverPick(e: Event) {
 
     <div v-else class="editor">
       <!-- Обложка -->
-      <button
-        type="button"
-        class="editor__cover"
-        :disabled="isUploadingCover"
-        @click="pickCover"
-      >
+      <button type="button" class="editor__cover" :disabled="isUploadingCover" @click="pickCover">
         <ImagePlaceholder
           :src="draft.cover_url"
           tone="neutral"
@@ -228,13 +218,7 @@ async function onCoverPick(e: Event) {
           <Loader2 :size="28" class="editor__cover-spin" />
         </span>
       </button>
-      <input
-        ref="coverInput"
-        type="file"
-        accept="image/*"
-        hidden
-        @change="onCoverPick"
-      />
+      <input ref="coverInput" type="file" accept="image/*" hidden @change="onCoverPick" />
 
       <!-- Название / категория / время -->
       <div class="smart-field">
@@ -268,7 +252,9 @@ async function onCoverPick(e: Event) {
       <section v-for="(s, si) in draft.sections" :key="s.id" class="ed-section">
         <div class="ed-section__head">
           <div class="smart-field ed-section__title">
-            <span class="smart-field__label">Секция {{ si + 1 }} <span class="ed-req">*</span></span>
+            <span class="smart-field__label"
+              >Секция {{ si + 1 }} <span class="ed-req">*</span></span
+            >
             <input v-model="s.title" type="text" placeholder="Тесто / Крем / Основа" />
             <span v-if="fieldError('sections', si, 'title')" class="ui-errors">
               <span class="ui-error">{{ fieldError('sections', si, 'title') }}</span>
@@ -340,12 +326,7 @@ async function onCoverPick(e: Event) {
         <!-- КБЖУ — по желанию -->
         <div class="ed-kbju-head">
           <p class="ed-section__caption">КБЖУ</p>
-          <button
-            v-if="s.kbju"
-            type="button"
-            class="ed-kbju-head__remove"
-            @click="removeKbju(si)"
-          >
+          <button v-if="s.kbju" type="button" class="ed-kbju-head__remove" @click="removeKbju(si)">
             Убрать
           </button>
         </div>
