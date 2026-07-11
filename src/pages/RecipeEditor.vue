@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronLeft, Plus, Trash2, Check, Loader2 } from 'lucide-vue-next'
 import type { RecipeDto } from '@/api/recipes/resources/recipe.resource'
 import { recipesRepository } from '@/repository/recipes.repository'
 import { RecipeFactory } from '@/features/recipes/lib/recipe-factory'
-import { RecipeSchema, firstIssue } from '@/features/recipes/forms/recipe.form'
+import { RecipeSchema } from '@/features/recipes/forms/recipe.form'
 import { useRecipeSave } from '@/features/recipes/model/useRecipeSave'
 import { useCategories } from '@/features/categories/model/useCategories'
 import { useNotificationsStore } from '@/_shared/stores/notifications'
@@ -95,23 +95,47 @@ function clean(recipe: RecipeDto): RecipeDto {
   return r
 }
 
+// Инлайн-валидация. Показываем ошибки прямо в форме (не тостом — его легко
+// пропустить / прячется за шапкой Telegram). Появляются после первой попытки
+// сохранить и сами гаснут, как поле заполнили (реактивный computed).
+const submitted = ref(false)
+const errors = computed<Record<string, string>>(() => {
+  if (!submitted.value || !draft.value) return {}
+  const parsed = RecipeSchema.safeParse(clean(draft.value))
+  if (parsed.success) return {}
+  const map: Record<string, string> = {}
+  for (const issue of parsed.error.issues) {
+    const key = issue.path.join('.')
+    if (!(key in map)) map[key] = issue.message // первое сообщение на поле
+  }
+  return map
+})
+function fieldError(...parts: (string | number)[]): string | undefined {
+  return errors.value[parts.join('.')]
+}
+
 async function onSave() {
-  // Запись идёт через Edge Function, которая проверяет подписанный Telegram
-  // initData + права админа. С обычного сайта (в т.ч. с ?admin=1 — это лишь
-  // превью edit-режима) подписи нет, поэтому сохранение сервер отклонит.
-  // Сообщаем об этом прямо, а не глухой ошибкой edge-функции.
+  submitted.value = true
+
+  // Сначала — валидность формы (инлайн-ошибки уже видны через computed).
+  if (Object.keys(errors.value).length) {
+    await nextTick()
+    document
+      .querySelector('.ui-errors')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return
+  }
+
+  // Форма валидна. Запись идёт через Edge Function, которая проверяет подписанный
+  // Telegram initData + права админа. С обычного сайта (в т.ч. с ?admin=1 — это
+  // лишь превью edit-режима) подписи нет, поэтому сохранение сервер отклонит.
   if (isSupabaseConfigured && !TelegramHelper.isTelegram) {
     notifications.error('Сохранять рецепты можно только из приложения в Telegram')
     return
   }
 
   const cleaned = clean(draft.value!)
-  const parsed = RecipeSchema.safeParse(cleaned)
-  if (!parsed.success) {
-    notifications.error(firstIssue(parsed.error))
-    return
-  }
-  await save(parsed.data as RecipeDto)
+  await save(cleaned)
   notifications.success(isNew ? 'Рецепт создан' : 'Сохранено')
   router.replace({ name: 'recipe', params: { id: cleaned.id } })
 }
@@ -210,20 +234,29 @@ async function onCoverPick(e: Event) {
 
       <!-- Название / категория / время -->
       <div class="smart-field">
-        <span class="smart-field__label">Название</span>
+        <span class="smart-field__label">Название <span class="ed-req">*</span></span>
         <input v-model="draft.title" type="text" placeholder="Например, Кулич" />
+        <span v-if="fieldError('title')" class="ui-errors">
+          <span class="ui-error">{{ fieldError('title') }}</span>
+        </span>
       </div>
 
       <div class="editor__row">
         <div class="smart-field editor__row-grow">
-          <span class="smart-field__label">Категория</span>
+          <span class="smart-field__label">Категория <span class="ed-req">*</span></span>
           <select v-model="draft.category_slug">
             <option v-for="c in categories" :key="c.id" :value="c.slug">{{ c.title }}</option>
           </select>
+          <span v-if="fieldError('category_slug')" class="ui-errors">
+            <span class="ui-error">{{ fieldError('category_slug') }}</span>
+          </span>
         </div>
         <div class="smart-field editor__time">
-          <span class="smart-field__label">Время, мин</span>
+          <span class="smart-field__label">Время, мин <span class="ed-req">*</span></span>
           <input v-model.number="draft.time_minutes" type="number" min="1" inputmode="numeric" />
+          <span v-if="fieldError('time_minutes')" class="ui-errors">
+            <span class="ui-error">{{ fieldError('time_minutes') }}</span>
+          </span>
         </div>
       </div>
 
@@ -231,8 +264,11 @@ async function onCoverPick(e: Event) {
       <section v-for="(s, si) in draft.sections" :key="s.id" class="ed-section">
         <div class="ed-section__head">
           <div class="smart-field ed-section__title">
-            <span class="smart-field__label">Секция {{ si + 1 }}</span>
+            <span class="smart-field__label">Секция {{ si + 1 }} <span class="ed-req">*</span></span>
             <input v-model="s.title" type="text" placeholder="Тесто / Крем / Основа" />
+            <span v-if="fieldError('sections', si, 'title')" class="ui-errors">
+              <span class="ui-error">{{ fieldError('sections', si, 'title') }}</span>
+            </span>
           </div>
           <IconButton
             v-if="draft.sections.length > 1"
@@ -245,7 +281,7 @@ async function onCoverPick(e: Event) {
         </div>
 
         <!-- Ингредиенты -->
-        <p class="ed-section__caption">Ингредиенты</p>
+        <p class="ed-section__caption">Ингредиенты <span class="ed-req">*</span></p>
         <div v-for="(ing, ii) in s.ingredients" :key="ing.id" class="ed-row">
           <div class="smart-field ed-row__amount">
             <input v-model="ing.amount" type="text" placeholder="кол-во" />
@@ -262,6 +298,9 @@ async function onCoverPick(e: Event) {
             <Trash2 :size="16" />
           </button>
         </div>
+        <span v-if="fieldError('sections', si, 'ingredients')" class="ed-error">
+          {{ fieldError('sections', si, 'ingredients') }}
+        </span>
         <AppButton variant="dashed" block @click="addIngredient(si)">
           <Plus :size="16" /> Ингредиент
         </AppButton>
@@ -465,6 +504,19 @@ async function onCoverPick(e: Event) {
     font-size: 14px;
     color: $color-muted;
   }
+}
+
+.ed-req {
+  color: $color-danger;
+  font-weight: 800;
+}
+
+.ed-error {
+  display: block;
+  margin-top: -2px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: $color-danger;
 }
 
 .ed-row {
