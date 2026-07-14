@@ -1,9 +1,14 @@
-// Вебхук Telegram-бота. Главная команда: /me_admin {ключ} — делает отправителя
-// админом, если ключ совпал с секретом ADMIN_SECRET.
+// Вебхук Telegram-бота. Бот — инструмент СУПЕР-АДМИНА (тебя).
 //
-// Настройка вебхука (один раз):
+//   /me_admin {ключ}   — стать супер-админом (ключ = ADMIN_SECRET).
+//   /users             — список зарегистрированных пользователей (email + статус).
+//   /grant {email}     — выдать админку (редактирование рецептов).
+//   /revoke {email}    — забрать админку.
+//
+// Обычные пользователи входят в приложении по email+паролю. Супер-админ раздаёт
+// им права этими командами. Настройка вебхука (один раз):
 //   https://api.telegram.org/bot<TOKEN>/setWebhook?url=<PROJECT>/functions/v1/bot
-import { serviceClient } from '../_shared/admin.ts'
+import { serviceClient, isSuperAdmin } from '../_shared/admin.ts'
 
 interface TgMessage {
   chat: { id: number }
@@ -30,31 +35,83 @@ Deno.serve(async (req) => {
   const msg = update.message
   if (!msg?.text || !msg.from) return new Response('ok')
 
+  const fromId = msg.from.id
   const [command, ...rest] = msg.text.trim().split(/\s+/)
+  const arg = rest.join(' ').trim()
+  const sb = serviceClient()
 
   if (command === '/start') {
-    await reply(
-      msg.chat.id,
-      'Привет! Это книга рецептов 🌿 Открой мини-приложение, чтобы готовить.',
-    )
+    await reply(msg.chat.id, 'Привет! Это книга рецептов 🌿 Открой приложение, чтобы готовить.')
     return new Response('ok')
   }
 
+  // Стать супер-админом по секретному ключу.
   if (command === '/me_admin') {
-    const key = rest.join(' ')
     const secret = Deno.env.get('ADMIN_SECRET')
-    if (!secret || key !== secret) {
+    if (!secret || arg !== secret) {
       await reply(msg.chat.id, 'Неверный ключ 🙈')
       return new Response('ok')
     }
-    const sb = serviceClient()
-    const { error } = await sb.from('admins').upsert({ telegram_id: msg.from.id })
+    const { error } = await sb.from('super_admins').upsert({ telegram_id: fromId })
     await reply(
       msg.chat.id,
-      error ? 'Не получилось, попробуй позже' : 'Готово! Теперь ты можешь редактировать рецепты ✍️',
+      error
+        ? 'Не получилось, попробуй позже'
+        : 'Готово! Ты супер-админ. Команды: /users, /grant email, /revoke email',
     )
     return new Response('ok')
   }
 
+  // Дальше — только для супер-админа.
+  const superAdmin = await isSuperAdmin(sb, fromId)
+  if (!superAdmin) {
+    await reply(msg.chat.id, 'Команда доступна только супер-админу.')
+    return new Response('ok')
+  }
+
+  if (command === '/users') {
+    const { data, error } = await sb
+      .from('profiles')
+      .select('email, is_admin')
+      .order('created_at', { ascending: true })
+      .limit(100)
+    if (error) {
+      await reply(msg.chat.id, 'Не удалось получить список.')
+      return new Response('ok')
+    }
+    if (!data?.length) {
+      await reply(msg.chat.id, 'Пока никто не зарегистрировался.')
+      return new Response('ok')
+    }
+    const lines = data.map((u) => `${u.is_admin ? '✅' : '▫️'} ${u.email ?? '—'}`)
+    await reply(msg.chat.id, `Пользователи:\n${lines.join('\n')}\n\n/grant email · /revoke email`)
+    return new Response('ok')
+  }
+
+  if (command === '/grant' || command === '/revoke') {
+    const email = arg.toLowerCase()
+    if (!email) {
+      await reply(msg.chat.id, `Укажи email: ${command} anya@example.com`)
+      return new Response('ok')
+    }
+    const isAdmin = command === '/grant'
+    const { data, error } = await sb
+      .from('profiles')
+      .update({ is_admin: isAdmin })
+      .eq('email', email)
+      .select('email')
+    if (error) {
+      await reply(msg.chat.id, 'Ошибка при обновлении.')
+      return new Response('ok')
+    }
+    if (!data?.length) {
+      await reply(msg.chat.id, `Не нашёл пользователя с email ${email}. Пусть сначала зарегистрируется.`)
+      return new Response('ok')
+    }
+    await reply(msg.chat.id, isAdmin ? `Выдал админку: ${email} ✍️` : `Забрал админку: ${email}`)
+    return new Response('ok')
+  }
+
+  await reply(msg.chat.id, 'Команды: /users, /grant email, /revoke email')
   return new Response('ok')
 })

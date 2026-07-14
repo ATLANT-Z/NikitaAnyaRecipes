@@ -74,11 +74,13 @@ src/
 - Булевы всегда с `is`: `isLoading`, `isEditing`.
 - `as const satisfies Record<...>` для «значение-как-тип».
 
-## Telegram / админ
+## Авторизация / админ
 
-- `TelegramHelper` — обёртка над Telegram WebApp. `isTelegram` = есть подписанный `initData`.
-- Редактирование (карандаш) доступно **только внутри Telegram** и только админам (таблица `admins`). Обычный сайт — read-only.
-- Аня становится админом командой боту `/me_admin {key}` (Edge Function сверяет ключ).
+- Вход в браузере — **email + пароль** (Supabase Auth, подтверждение почты выключено). Store — `features/auth/model/auth.store.ts`. Просмотр рецептов публичный; вход нужен только для редактирования.
+- `isAdmin` = `profiles.is_admin` текущего пользователя. Редактирование (карандаш/плюс, роуты `recipe-new`/`recipe-edit` с `meta.requiresAdmin`) доступно только админам; гард в `app/router.ts`.
+- Записи (`_fn`) уходят с заголовком `Authorization: Bearer <JWT сессии>`; Edge Function проверяет `profiles.is_admin` (`_shared/admin.ts → requireAdmin`).
+- **Супер-админ** — Telegram-личность: кто знает `ADMIN_SECRET`, тот `/me_admin` в боте → строка в `super_admins`. Супер-админ раздаёт админки по email: `/users`, `/grant <email>`, `/revoke <email>` (см. `supabase/functions/bot`).
+- Dev без `.env` (фикстуры): превью edit-режима через `?admin=1` (в `auth.store` init).
 
 ## Команды
 

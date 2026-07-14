@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Единственный клиент Supabase на всё приложение.
-// anon-ключ безопасно живёт на фронте: доступ ограничен RLS (только чтение).
-// Все ЗАПИСИ идут не отсюда, а через Edge Functions с проверкой админа.
+// anon-ключ безопасно живёт на фронте: чтение ограничено RLS.
+// ЧТЕНИЕ рецептов — публичное. ЗАПИСИ идут через Edge Functions с проверкой
+// админа по Supabase-JWT (сессия входа email+пароль).
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -12,5 +13,6 @@ if (!url || !anonKey) {
 }
 
 export const supabase = createClient(url ?? '', anonKey ?? '', {
-  auth: { persistSession: false },
+  // Храним сессию входа в localStorage и сами обновляем токен.
+  auth: { persistSession: true, autoRefreshToken: true },
 })

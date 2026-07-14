@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 import GlobalModals from '@/_shared/components/modals/GlobalModals.vue'
 import { modalService } from '@/services/modal.service'
-import { useEditModeStore } from '@/features/admin/model/edit-mode.store'
 
-// Проверяем права админа при старте (актуально внутри Telegram).
-onMounted(() => useEditModeStore().initFromTelegram())
+// Сессия входа восстанавливается в main.ts до маунта (см. useAuthStore().init()).
 </script>
 
 <template>

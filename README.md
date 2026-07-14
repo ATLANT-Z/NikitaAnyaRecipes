@@ -43,9 +43,19 @@ npm run lint
 
 ### 2. Создать таблицы
 
-Вариант простой (без CLI): открой в Supabase **SQL Editor**, вставь содержимое
-[`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), нажми **Run**.
-Создадутся таблицы, RLS-политики, бакет для картинок и сид категорий.
+Вариант простой (без CLI): открой в Supabase **SQL Editor** и выполни по очереди
+две миграции (**Run** для каждой):
+
+1. [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — таблицы
+   рецептов, RLS, бакет обложек, сид категорий.
+2. [`supabase/migrations/0002_auth.sql`](supabase/migrations/0002_auth.sql) — профили
+   пользователей (email+пароль), автосоздание профиля при регистрации, супер-админы.
+
+### 2.1. Отключить подтверждение email
+
+**Authentication → Providers → Email** → выключи **Confirm email** (Enable email
+confirmations = off). Тогда регистрация и вход работают сразу, без писем и SMTP —
+это важно для пользователей в РФ. Email/пароль — единственный способ входа.
 
 ### 3. Установить Supabase CLI (для Edge Functions)
 
@@ -68,7 +78,7 @@ supabase link --project-ref <ID-проекта>   # ID виден в URL даш�
 supabase secrets set TELEGRAM_BOT_TOKEN=<токен_бота>
 supabase secrets set ADMIN_SECRET=<секретный_ключ_админа>
 
-supabase functions deploy bot recipe-upsert recipe-delete verify-admin cover-upload --no-verify-jwt
+supabase functions deploy bot recipe-upsert recipe-delete cover-upload --no-verify-jwt
 ```
 
 ### 6. Включить вебхук бота
@@ -81,15 +91,22 @@ https://api.telegram.org/bot<ТОКЕН>/setWebhook?url=https://<PROJECT>.supaba
 
 Открой эту ссылку в браузере — должно вернуться `{"ok":true}`.
 
-### 7. Сделать Аню админом
+### 7. Раздать админки (через бота)
 
-Аня пишет боту:
+Вход в приложении — по **email + паролю** (просмотр рецептов открыт всем, вход нужен
+только для редактирования). Права редактора раздаёт супер-админ через бота.
 
-```
-/me_admin <секретный_ключ_админа>
-```
-
-Бот ответит «Готово!» — теперь внутри Telegram у неё виден карандаш и можно редактировать.
+1. Ты становишься **супер-админом** — пишешь боту:
+   ```
+   /me_admin <секретный_ключ_админа>
+   ```
+   Кто знает ключ — тот супер-админ. Дальше боту доступны команды:
+   - `/users` — список зарегистрированных (email + статус);
+   - `/grant <email>` — выдать админку;
+   - `/revoke <email>` — забрать.
+2. Аня открывает приложение → **Войти** → регистрируется (email + пароль).
+3. Ты шлёшь боту `/grant <её_email>` — теперь у неё виден карандаш и можно
+   редактировать. Себе выдаёшь так же (`/grant <твой_email>`).
 
 ---
 

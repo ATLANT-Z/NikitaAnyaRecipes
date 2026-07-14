@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Search } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { Search, LogIn, LogOut } from 'lucide-vue-next'
 import { useCategories } from '@/features/categories/model/useCategories'
+import { useAuthStore } from '@/features/auth/model/auth.store'
+import { useNotificationsStore } from '@/_shared/stores/notifications'
 import CategoryTile from '@/features/categories/ui/CategoryTile.vue'
 import SearchPanel from '@/features/recipes/ui/SearchPanel.vue'
 import AppScreen from '@/shared/ui/AppScreen.vue'
@@ -9,8 +13,17 @@ import AppHeader from '@/shared/ui/AppHeader.vue'
 import IconButton from '@/shared/ui/IconButton.vue'
 import Skeleton from '@/shared/ui/Skeleton.vue'
 
+const router = useRouter()
 const { categories, isLoading } = useCategories()
+const auth = useAuthStore()
+const { isAuthed } = storeToRefs(auth)
+const notifications = useNotificationsStore()
 const isSearchOpen = ref(false)
+
+async function onLogout() {
+  await auth.logout()
+  notifications.success('Вы вышли')
+}
 </script>
 
 <template>
@@ -19,6 +32,12 @@ const isSearchOpen = ref(false)
       <template #right>
         <IconButton label="Поиск" @click="isSearchOpen = true">
           <Search :size="22" />
+        </IconButton>
+        <IconButton v-if="isAuthed" label="Выйти" @click="onLogout">
+          <LogOut :size="22" />
+        </IconButton>
+        <IconButton v-else label="Войти" @click="router.push({ name: 'login' })">
+          <LogIn :size="22" />
         </IconButton>
       </template>
     </AppHeader>

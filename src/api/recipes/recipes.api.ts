@@ -48,7 +48,7 @@ export class RecipesApi extends BaseApi {
     return recipe
   }
 
-  // Запись — через Edge Function с проверкой Telegram-админа (docs/tech-debt.md #2).
+  // Запись — через Edge Function с проверкой админа по JWT сессии (email-вход).
   async upsert(recipe: RecipeDto): Promise<RecipeDto> {
     return this._fn<RecipeDto>('recipe-upsert', { recipe }).catch(
       ErrorHelper.map(

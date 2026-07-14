@@ -5,6 +5,7 @@ import { router } from '@/app/router'
 import { vueQuery } from '@/app/query'
 import { modalService, ModalServiceKey } from '@/services/modal.service'
 import { TelegramHelper } from '@/_shared/telegram/telegram'
+import { useAuthStore } from '@/features/auth/model/auth.store'
 import '@/assets/scss/index.scss'
 import 'vue-sonner/style.css'
 
@@ -18,4 +19,8 @@ app.use(router)
 app.use(...vueQuery)
 app.provide(ModalServiceKey, modalService)
 
-app.mount('#app')
+// Восстанавливаем сессию входа ДО маунта — чтобы гарды сразу знали, админ ли мы.
+// Монтируем в любом случае (даже если восстановление упало).
+useAuthStore()
+  .init()
+  .finally(() => app.mount('#app'))

@@ -11,8 +11,6 @@ import { useCategories } from '@/features/categories/model/useCategories'
 import { useNotificationsStore } from '@/_shared/stores/notifications'
 import { useHandleError } from '@/_shared/composables/useHandleError'
 import { useModals } from '@/services/modal.service'
-import { TelegramHelper } from '@/_shared/telegram/telegram'
-import { isSupabaseConfigured } from '@/_shared/supabase/isConfigured'
 import AppScreen from '@/shared/ui/AppScreen.vue'
 import AppHeader from '@/shared/ui/AppHeader.vue'
 import IconButton from '@/shared/ui/IconButton.vue'
@@ -128,11 +126,6 @@ async function onSave() {
     return
   }
 
-  if (isSupabaseConfigured && !TelegramHelper.isTelegram) {
-    notifications.error('Сохранять рецепты можно только из приложения в Telegram')
-    return
-  }
-
   const cleaned = clean(draft.value!)
   await save(cleaned)
   notifications.success(isNew ? 'Рецепт создан' : 'Сохранено')
@@ -158,10 +151,6 @@ const coverInput = ref<HTMLInputElement | null>(null)
 const isUploadingCover = ref(false)
 
 function pickCover() {
-  if (isSupabaseConfigured && !TelegramHelper.isTelegram) {
-    notifications.error('Загрузка обложек доступна только из приложения в Telegram')
-    return
-  }
   coverInput.value?.click()
 }
 
@@ -252,9 +241,7 @@ async function onCoverPick(e: Event) {
       <section v-for="(s, si) in draft.sections" :key="s.id" class="ed-section">
         <div class="ed-section__head">
           <div class="smart-field ed-section__title">
-            <span class="smart-field__label"
-              >Секция {{ si + 1 }} <span class="ed-req">*</span></span
-            >
+            <span class="smart-field__label">Секция {{ si + 1 }} <span class="ed-req">*</span></span>
             <input v-model="s.title" type="text" placeholder="Тесто / Крем / Основа" />
             <span v-if="fieldError('sections', si, 'title')" class="ui-errors">
               <span class="ui-error">{{ fieldError('sections', si, 'title') }}</span>
@@ -278,6 +265,9 @@ async function onCoverPick(e: Event) {
           </div>
           <div class="smart-field ed-row__grow">
             <input v-model="ing.name" type="text" placeholder="ингредиент" />
+            <span v-if="fieldError('sections', si, 'ingredients', ii, 'name')" class="ui-errors">
+              <span class="ui-error">{{ fieldError('sections', si, 'ingredients', ii, 'name') }}</span>
+            </span>
           </div>
           <button
             type="button"

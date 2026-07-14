@@ -7,7 +7,7 @@ import { useRecipe } from '@/features/recipes/model/useRecipe'
 import { useCategories } from '@/features/categories/model/useCategories'
 import { useIngredientChecks } from '@/features/recipes/model/useIngredientChecks'
 import { useFavorites } from '@/features/favorites/model/useFavorites'
-import { useEditModeStore } from '@/features/admin/model/edit-mode.store'
+import { useAuthStore } from '@/features/auth/model/auth.store'
 import { CategoryVisuals } from '@/features/categories/lib/category-visuals'
 import { TimeHelper } from '@/services/helpers/number.helper'
 import SectionBlock from '@/features/recipes/ui/SectionBlock.vue'
@@ -27,8 +27,7 @@ const { categories } = useCategories()
 const checks = useIngredientChecks(props.id)
 const { data: fav, actions: favActions } = useFavorites()
 
-const editMode = useEditModeStore()
-const { isAdmin } = storeToRefs(editMode)
+const { isAdmin } = storeToRefs(useAuthStore())
 
 const categoryTitle = computed(
   () => categories.value?.find((c) => c.slug === recipe.value?.category_slug)?.title ?? '',

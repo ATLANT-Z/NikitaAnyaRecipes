@@ -5,7 +5,7 @@ import { storeToRefs } from 'pinia'
 import { ChevronLeft, Search, Plus } from 'lucide-vue-next'
 import { useCategories } from '@/features/categories/model/useCategories'
 import { useRecipeList } from '@/features/recipes/model/useRecipeList'
-import { useEditModeStore } from '@/features/admin/model/edit-mode.store'
+import { useAuthStore } from '@/features/auth/model/auth.store'
 import RecipeCard from '@/features/recipes/ui/RecipeCard.vue'
 import SearchPanel from '@/features/recipes/ui/SearchPanel.vue'
 import AppScreen from '@/shared/ui/AppScreen.vue'
@@ -24,8 +24,7 @@ const title = computed(
 
 const { recipes, isLoading } = useRecipeList(() => props.slug)
 
-const editMode = useEditModeStore()
-const { isAdmin } = storeToRefs(editMode)
+const { isAdmin } = storeToRefs(useAuthStore())
 const isSearchOpen = ref(false)
 </script>
 
