@@ -1,6 +1,6 @@
 import BaseApi from '@/_shared/api/base.api'
 import { ErrorHelper, SE } from '@/_shared/api/errors'
-import type { RecipeCardDto, RecipeDto } from './resources/recipe.resource'
+import type { RecipeCardDto, RecipeCoverDto, RecipeDto } from './resources/recipe.resource'
 
 // Секции хранятся денормализованно (jsonb-массивы внутри recipe_sections),
 // поэтому один вложенный select возвращает уже готовый DTO. См. docs/tech-debt.md.
@@ -20,6 +20,17 @@ export class RecipesApi extends BaseApi {
       .from('recipes')
       .select(CARD_SELECT)
       .eq('category_slug', slug)
+      .order('created_at', { ascending: false })
+    return BaseApi.unwrap(res)
+  }
+
+  // Обложки всех блюд с фото (для мозаики плиток категорий на главной).
+  // created_at участвует только в сортировке — в DTO не тянем.
+  async listCovers(): Promise<RecipeCoverDto[]> {
+    const res = await this.sb
+      .from('recipes')
+      .select('id, category_slug, cover_url')
+      .not('cover_url', 'is', null)
       .order('created_at', { ascending: false })
     return BaseApi.unwrap(res)
   }

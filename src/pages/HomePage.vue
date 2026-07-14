@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Search, LogIn, LogOut } from 'lucide-vue-next'
 import { useCategories } from '@/features/categories/model/useCategories'
+import { useCategoryCovers } from '@/features/categories/model/useCategoryCovers'
 import { useAuthStore } from '@/features/auth/model/auth.store'
 import { useNotificationsStore } from '@/_shared/stores/notifications'
 import CategoryTile from '@/features/categories/ui/CategoryTile.vue'
@@ -15,6 +16,7 @@ import Skeleton from '@/shared/ui/Skeleton.vue'
 
 const router = useRouter()
 const { categories, isLoading } = useCategories()
+const { coversBySlug } = useCategoryCovers()
 const auth = useAuthStore()
 const { isAuthed } = storeToRefs(auth)
 const notifications = useNotificationsStore()
@@ -48,7 +50,12 @@ async function onLogout() {
       <Skeleton v-for="n in 8" :key="n" height="auto" radius="20px" class="home__skeleton" />
     </div>
     <div v-else class="home__grid">
-      <CategoryTile v-for="cat in categories" :key="cat.id" :category="cat" />
+      <CategoryTile
+        v-for="cat in categories"
+        :key="cat.id"
+        :category="cat"
+        :covers="coversBySlug.get(cat.slug)"
+      />
     </div>
 
     <SearchPanel v-model:open="isSearchOpen" />
@@ -66,11 +73,32 @@ async function onLogout() {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
+
+    // Мягкое каскадное появление плиток (гасится prefers-reduced-motion).
+    > * {
+      animation: tile-in $anim-slow $ease-soft both;
+    }
+    @for $i from 1 through 8 {
+      > *:nth-child(#{$i}) {
+        animation-delay: #{($i - 1) * 0.05}s;
+      }
+    }
   }
 
   &__skeleton {
     aspect-ratio: 4 / 3;
     height: auto;
+  }
+}
+
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

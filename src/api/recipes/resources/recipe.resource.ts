@@ -48,6 +48,13 @@ export interface RecipeCardDto {
   cover_url: string | null
 }
 
+// Обложка для мозаики плитки категории — лёгкая выборка (только с фото).
+export interface RecipeCoverDto {
+  id: string
+  category_slug: string
+  cover_url: string
+}
+
 // Полный рецепт (экран рецепта).
 export interface RecipeDto extends RecipeCardDto {
   time_minutes: number

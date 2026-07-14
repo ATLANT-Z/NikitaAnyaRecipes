@@ -42,6 +42,16 @@ const { data, actions } = useFavorites()
   position: relative;
   @include card($radius-lg);
   overflow: hidden;
+  @include anim(transform);
+  transition-property: transform, box-shadow;
+
+  &:hover {
+    box-shadow: $shadow-float;
+  }
+  // Нажатие на карточку (но не на сердечко) — лёгкая «утоплённость».
+  &:has(&__link:active) {
+    transform: scale(0.98);
+  }
 
   &__link {
     display: block;

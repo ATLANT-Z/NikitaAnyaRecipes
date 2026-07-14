@@ -1,6 +1,10 @@
 import { v4 as uuid } from 'uuid'
 import { API } from '@/api/api'
-import type { RecipeCardDto, RecipeDto } from '@/api/recipes/resources/recipe.resource'
+import type {
+  RecipeCardDto,
+  RecipeCoverDto,
+  RecipeDto,
+} from '@/api/recipes/resources/recipe.resource'
 import { AppError } from '@/_shared/api/errors'
 import { isSupabaseConfigured } from '@/_shared/supabase/isConfigured'
 import { RECIPES_FIXTURE } from '@/_shared/mock/fixtures'
@@ -18,6 +22,17 @@ class RecipesRepository {
       return RECIPES_FIXTURE.filter((r) => r.category_slug === slug).map(toCard)
     }
     return this.api.listByCategory(slug)
+  }
+
+  async listCovers(): Promise<RecipeCoverDto[]> {
+    if (!isSupabaseConfigured) {
+      return RECIPES_FIXTURE.filter((r) => !!r.cover_url).map((r) => ({
+        id: r.id,
+        category_slug: r.category_slug,
+        cover_url: r.cover_url as string,
+      }))
+    }
+    return this.api.listCovers()
   }
 
   async search(query: string): Promise<RecipeCardDto[]> {
