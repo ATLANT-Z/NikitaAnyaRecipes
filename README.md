@@ -119,6 +119,28 @@ https://api.telegram.org/bot<ТОКЕН>/setWebhook?url=https://<PROJECT>.supaba
    `VITE_TELEGRAM_BOT_USERNAME` (юзернейм бота без `@`).
 5. Deploy. Получишь ссылку вида `https://recipes-xxx.vercel.app`.
 
+## Деплой фронта на GitHub Pages
+
+Настроено автодеплоем — при пуше в `master` воркфлоу
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) собирает и публикует
+`dist`. Префикс пути (`/<repo>/`) и SPA-роутинг на прямых ссылках уже учтены
+(`base` в [`vite.config.ts`](vite.config.ts), `404.html` + разворот в `index.html`).
+
+Один раз включи на GitHub:
+
+1. **Settings → Pages → Build and deployment → Source: `GitHub Actions`.**
+2. **Settings → Secrets and variables → Actions → New repository secret** — добавь:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+
+   (anon-ключ публичный — он и так уходит в бандл; защита чтения — RLS.)
+3. Сделай пуш в `master` (или запусти воркфлоу вручную во вкладке **Actions**).
+   Сайт будет на `https://<owner>.github.io/<repo>/` — для этого репозитория
+   `https://atlant-z.github.io/NikitaAnyaRecipes/`.
+
+> Переименуешь репозиторий — путь подхватится сам (берётся из `GITHUB_REPOSITORY`).
+> Если позже привяжешь свой домен, пути станут корневыми — собери с `BASE_PATH=/`.
+
 ## Привязать Mini App к боту
 
 В [@BotFather](https://t.me/BotFather): `/newapp` (или **Bot Settings → Menu Button**) →

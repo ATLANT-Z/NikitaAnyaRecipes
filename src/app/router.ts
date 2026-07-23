@@ -42,7 +42,9 @@ const routes: RouteRecordRaw[] = [
 ]
 
 export const router = createRouter({
-  history: createWebHistory(),
+  // BASE_URL приходит из vite `base` — так роутинг работает и на корне,
+  // и под префиксом GitHub Pages (/<repo>/) без ручной правки путей.
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
   scrollBehavior: () => ({ top: 0 }),
 })
