@@ -5,13 +5,22 @@ import { useEventListener } from '@vueuse/core'
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Plus,
   Trash2,
   Check,
   Loader2,
   ImagePlus,
   X,
+  ShoppingBasket,
+  Repeat2,
+  ChefHat,
+  Coins,
+  Flame,
+  Refrigerator,
 } from 'lucide-vue-next'
+import { TimeHelper } from '@/services/helpers/number.helper'
 import type { RecipeDto } from '@/api/recipes/resources/recipe.resource'
 import { recipesRepository } from '@/repository/recipes.repository'
 import { RecipeFactory } from '@/features/recipes/lib/recipe-factory'
@@ -80,6 +89,7 @@ onMounted(async () => {
       }
       draft.value = recipe
       snapshot.value = JSON.stringify(recipe)
+      resizeSteps()
     } catch {
       notifications.error('Рецепт не найден')
       router.replace({ name: 'home' })
@@ -87,32 +97,117 @@ onMounted(async () => {
   }
 })
 
-function addSection() {
-  draft.value!.sections.push(RecipeFactory.section(draft.value!.sections.length + 1))
+// ─── Быстрый ввод: фокус сразу в новое поле, клавиатура не прячется ───
+// Поля помечены data-field="<ключ>"; ключи строим от id строк.
+async function focusField(key: string) {
+  await nextTick()
+  document.querySelector<HTMLElement>(`[data-field="${key}"]`)?.focus()
 }
-function removeSection(i: number) {
+
+function addSection() {
+  const section = RecipeFactory.section(draft.value!.sections.length + 1)
+  draft.value!.sections.push(section)
+  focusField(`section-${section.id}-title`)
+}
+
+// Непустую секцию удаляем только после подтверждения — там может быть много ввода.
+function isSectionEmpty(s: RecipeDto['sections'][number]): boolean {
+  return (
+    !s.title.trim() &&
+    !s.servings?.trim() &&
+    s.cost == null &&
+    !s.kbju &&
+    s.ingredients.every((i) => !i.name.trim() && !i.amount.trim()) &&
+    s.substitutions.every((x) => !x.text.trim()) &&
+    s.steps.every((x) => !x.trim()) &&
+    s.storage.every((x) => !x.place.trim() && !x.duration.trim())
+  )
+}
+async function removeSection(i: number) {
+  const s = draft.value!.sections[i]
+  if (!isSectionEmpty(s)) {
+    const ok = await modals.show('confirm', {
+      props: {
+        title: `Удалить секцию${s.title.trim() ? ` «${s.title.trim()}»` : ` ${i + 1}`}?`,
+        message: 'Ингредиенты и шаги этой секции пропадут.',
+        confirmText: 'Удалить',
+        danger: true,
+      },
+    }).wait
+    if (!ok) return
+  }
   draft.value!.sections.splice(i, 1)
 }
+
+// Перестановка секций; после неё подводим экран к перемещённой карточке.
+async function moveSection(from: number, to: number) {
+  const sections = draft.value!.sections
+  if (to < 0 || to >= sections.length) return
+  const [moved] = sections.splice(from, 1)
+  sections.splice(to, 0, moved)
+  await nextTick()
+  document
+    .getElementById(`ed-section-${moved.id}`)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  resizeSteps()
+}
+
 function addIngredient(si: number) {
-  draft.value!.sections[si].ingredients.push(RecipeFactory.ingredient())
+  const ing = RecipeFactory.ingredient()
+  draft.value!.sections[si].ingredients.push(ing)
+  focusField(`ing-${ing.id}-name`)
 }
 function removeIngredient(si: number, ii: number) {
   draft.value!.sections[si].ingredients.splice(ii, 1)
 }
+// Enter: название → количество → следующая строка (на последней — новая).
+function onIngredientEnter(si: number, ii: number, part: 'name' | 'amount') {
+  const list = draft.value!.sections[si].ingredients
+  if (part === 'name') return focusField(`ing-${list[ii].id}-amount`)
+  if (ii === list.length - 1) return addIngredient(si)
+  focusField(`ing-${list[ii + 1].id}-name`)
+}
+
 function addSub(si: number) {
-  draft.value!.sections[si].substitutions.push(RecipeFactory.substitution())
+  const sub = RecipeFactory.substitution()
+  draft.value!.sections[si].substitutions.push(sub)
+  focusField(`sub-${sub.id}`)
 }
 function removeSub(si: number, i: number) {
   draft.value!.sections[si].substitutions.splice(i, 1)
 }
+
 function addStep(si: number) {
-  draft.value!.sections[si].steps.push('')
+  const s = draft.value!.sections[si]
+  s.steps.push('')
+  focusField(`step-${s.id}-${s.steps.length - 1}`)
 }
 function removeStep(si: number, i: number) {
   draft.value!.sections[si].steps.splice(i, 1)
+  resizeSteps()
 }
+function moveStep(si: number, from: number, to: number) {
+  const steps = draft.value!.sections[si].steps
+  if (to < 0 || to >= steps.length) return
+  const [moved] = steps.splice(from, 1)
+  steps.splice(to, 0, moved)
+  resizeSteps()
+}
+
+// Поле шага растёт по высоте вместе с текстом (без ручного «уголка»).
+function autosize(el: HTMLTextAreaElement) {
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight + 2}px`
+}
+async function resizeSteps() {
+  await nextTick()
+  document.querySelectorAll<HTMLTextAreaElement>('textarea[data-autosize]').forEach(autosize)
+}
+
 function addStorage(si: number) {
-  draft.value!.sections[si].storage.push(RecipeFactory.storage())
+  const st = RecipeFactory.storage()
+  draft.value!.sections[si].storage.push(st)
+  focusField(`storage-${st.id}-place`)
 }
 function removeStorage(si: number, i: number) {
   draft.value!.sections[si].storage.splice(i, 1)
@@ -167,9 +262,13 @@ async function onSave() {
   await nextTick()
 
   if (Object.keys(errors.value).length) {
-    document
-      .querySelector('.ui-errors, .ed-error')
-      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const first = document.querySelector('.ui-errors, .ed-error')
+    first?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    // Ставим курсор в первое незаполненное поле — сразу можно печатать.
+    first
+      ?.closest('.smart-field')
+      ?.querySelector<HTMLElement>('input, select, textarea')
+      ?.focus({ preventScroll: true })
     return
   }
 
@@ -386,145 +485,301 @@ function removePhoto(i: number) {
           <span v-if="fieldError('time_minutes')" class="ui-errors">
             <span class="ui-error">{{ fieldError('time_minutes') }}</span>
           </span>
+          <span v-else-if="draft.time_minutes >= 60" class="ed-hint">
+            = {{ TimeHelper.duration(draft.time_minutes) }}
+          </span>
         </div>
       </div>
 
       <!-- Секции -->
-      <section v-for="(s, si) in draft.sections" :key="s.id" class="ed-section">
+      <section
+        v-for="(s, si) in draft.sections"
+        :id="`ed-section-${s.id}`"
+        :key="s.id"
+        class="ed-section"
+      >
         <div class="ed-section__head">
-          <div class="smart-field ed-section__title">
-            <span class="smart-field__label">Секция {{ si + 1 }}</span>
-            <input v-model="s.title" type="text" placeholder="Тесто / Крем / Основа" />
+          <span class="ed-section__label">
+            <span class="ed-section__num">{{ si + 1 }}</span> Секция
+          </span>
+          <div v-if="draft.sections.length > 1" class="ed-section__tools">
+            <button
+              type="button"
+              class="ed-mini"
+              aria-label="Секцию выше"
+              :disabled="si === 0"
+              @click="moveSection(si, si - 1)"
+            >
+              <ChevronUp :size="18" />
+            </button>
+            <button
+              type="button"
+              class="ed-mini"
+              aria-label="Секцию ниже"
+              :disabled="si === draft.sections.length - 1"
+              @click="moveSection(si, si + 1)"
+            >
+              <ChevronDown :size="18" />
+            </button>
+            <button
+              type="button"
+              class="ed-mini ed-mini--danger"
+              aria-label="Удалить секцию"
+              @click="removeSection(si)"
+            >
+              <Trash2 :size="17" />
+            </button>
           </div>
-          <IconButton
-            v-if="draft.sections.length > 1"
-            label="Удалить секцию"
-            variant="ghost"
-            @click="removeSection(si)"
-          >
-            <Trash2 :size="18" />
-          </IconButton>
+        </div>
+        <div class="smart-field">
+          <input
+            v-model="s.title"
+            type="text"
+            aria-label="Название секции"
+            placeholder="Название: Тесто, Крем, Основа…"
+            :data-field="`section-${s.id}-title`"
+          />
         </div>
 
-        <!-- Ингредиенты -->
-        <p class="ed-section__caption">Ингредиенты <span class="ed-req">*</span></p>
-        <div v-for="(ing, ii) in s.ingredients" :key="ing.id" class="ed-row">
-          <div class="smart-field ed-row__amount">
-            <input v-model="ing.amount" type="text" placeholder="кол-во" />
-          </div>
-          <div class="smart-field ed-row__grow">
-            <input v-model="ing.name" type="text" placeholder="ингредиент" />
-            <span v-if="fieldError('sections', si, 'ingredients', ii, 'name')" class="ui-errors">
-              <span class="ui-error">{{ fieldError('sections', si, 'ingredients', ii, 'name') }}</span>
+        <!-- Ингредиенты: название → количество; Enter ведёт дальше -->
+        <div class="ed-block">
+          <p class="ed-block__caption">
+            <ShoppingBasket :size="16" /> Ингредиенты <span class="ed-req">*</span>
+            <span v-if="s.ingredients.some((i) => i.name.trim())" class="ed-block__count">
+              {{ s.ingredients.filter((i) => i.name.trim()).length }}
             </span>
+          </p>
+          <div v-if="s.ingredients.length" class="ed-cols" aria-hidden="true">
+            <span class="ed-row__grow">Что</span>
+            <span class="ed-row__amount">Сколько</span>
+            <span class="ed-cols__spacer" />
           </div>
-          <button
-            type="button"
-            class="ed-row__del"
-            aria-label="Удалить"
-            @click="removeIngredient(si, ii)"
-          >
-            <Trash2 :size="16" />
-          </button>
+          <div v-for="(ing, ii) in s.ingredients" :key="ing.id" class="ed-row ed-row--top">
+            <div class="smart-field ed-row__grow">
+              <input
+                v-model="ing.name"
+                type="text"
+                placeholder="мука"
+                aria-label="Ингредиент"
+                enterkeyhint="next"
+                :data-field="`ing-${ing.id}-name`"
+                @keydown.enter.prevent="onIngredientEnter(si, ii, 'name')"
+              />
+              <span v-if="fieldError('sections', si, 'ingredients', ii, 'name')" class="ui-errors">
+                <span class="ui-error">
+                  {{ fieldError('sections', si, 'ingredients', ii, 'name') }}
+                </span>
+              </span>
+            </div>
+            <div class="smart-field ed-row__amount">
+              <input
+                v-model="ing.amount"
+                type="text"
+                placeholder="500 г"
+                aria-label="Количество"
+                enterkeyhint="next"
+                :data-field="`ing-${ing.id}-amount`"
+                @keydown.enter.prevent="onIngredientEnter(si, ii, 'amount')"
+              />
+            </div>
+            <button
+              type="button"
+              class="ed-row__del"
+              aria-label="Удалить ингредиент"
+              @click="removeIngredient(si, ii)"
+            >
+              <Trash2 :size="16" />
+            </button>
+          </div>
+          <span v-if="fieldError('sections', si, 'ingredients')" class="ed-error">
+            {{ fieldError('sections', si, 'ingredients') }}
+          </span>
+          <AppButton variant="dashed" block @click="addIngredient(si)">
+            <Plus :size="16" /> Ингредиент
+          </AppButton>
         </div>
-        <span v-if="fieldError('sections', si, 'ingredients')" class="ed-error">
-          {{ fieldError('sections', si, 'ingredients') }}
-        </span>
-        <AppButton variant="dashed" block @click="addIngredient(si)">
-          <Plus :size="16" /> Ингредиент
-        </AppButton>
 
         <!-- Замены -->
-        <p class="ed-section__caption">Замены</p>
-        <div v-for="(sub, i) in s.substitutions" :key="sub.id" class="ed-row">
-          <div class="smart-field ed-row__marker">
-            <input v-model="sub.marker" type="text" placeholder="*" />
+        <div class="ed-block">
+          <p class="ed-block__caption"><Repeat2 :size="16" /> Замены</p>
+          <p class="ed-hint">
+            Пометьте ингредиент значком (мука*), а здесь напишите, чем его заменить
+          </p>
+          <div v-for="(sub, i) in s.substitutions" :key="sub.id" class="ed-row">
+            <div class="smart-field ed-row__marker">
+              <input v-model="sub.marker" type="text" placeholder="*" aria-label="Значок" />
+            </div>
+            <div class="smart-field ed-row__grow">
+              <input
+                v-model="sub.text"
+                type="text"
+                placeholder="сметану — на йогурт"
+                aria-label="Замена"
+                :data-field="`sub-${sub.id}`"
+              />
+            </div>
+            <button
+              type="button"
+              class="ed-row__del"
+              aria-label="Удалить замену"
+              @click="removeSub(si, i)"
+            >
+              <Trash2 :size="16" />
+            </button>
           </div>
-          <div class="smart-field ed-row__grow">
-            <input v-model="sub.text" type="text" placeholder="чем заменить" />
-          </div>
-          <button type="button" class="ed-row__del" aria-label="Удалить" @click="removeSub(si, i)">
-            <Trash2 :size="16" />
-          </button>
+          <AppButton variant="dashed" block @click="addSub(si)">
+            <Plus :size="16" /> Замена
+          </AppButton>
         </div>
-        <AppButton variant="dashed" block @click="addSub(si)"><Plus :size="16" /> Замена</AppButton>
 
-        <!-- Мета -->
-        <p class="ed-section__caption">Порция и стоимость</p>
-        <div class="editor__row">
-          <div class="smart-field editor__row-grow">
-            <span class="smart-field__label">Порция</span>
-            <input v-model="s.servings" type="text" placeholder="1 форма" />
+        <!-- Приготовление: поле растёт по тексту, шаги можно переставлять -->
+        <div class="ed-block">
+          <p class="ed-block__caption">
+            <ChefHat :size="16" /> Приготовление
+            <span v-if="s.steps.some((x) => x.trim())" class="ed-block__count">
+              {{ s.steps.filter((x) => x.trim()).length }}
+            </span>
+          </p>
+          <div v-for="(_, i) in s.steps" :key="i" class="ed-row ed-row--top">
+            <span class="ed-row__num">{{ i + 1 }}</span>
+            <div class="smart-field ed-row__grow">
+              <textarea
+                v-model="s.steps[i]"
+                rows="2"
+                placeholder="Что делаем на этом шаге"
+                :aria-label="`Шаг ${i + 1}`"
+                data-autosize
+                :data-field="`step-${s.id}-${i}`"
+                @input="autosize($event.target as HTMLTextAreaElement)"
+              />
+            </div>
+            <div class="ed-row__tools">
+              <template v-if="s.steps.length > 1">
+                <button
+                  type="button"
+                  class="ed-mini"
+                  aria-label="Шаг выше"
+                  :disabled="i === 0"
+                  @click="moveStep(si, i, i - 1)"
+                >
+                  <ChevronUp :size="16" />
+                </button>
+                <button
+                  type="button"
+                  class="ed-mini"
+                  aria-label="Шаг ниже"
+                  :disabled="i === s.steps.length - 1"
+                  @click="moveStep(si, i, i + 1)"
+                >
+                  <ChevronDown :size="16" />
+                </button>
+              </template>
+              <button
+                type="button"
+                class="ed-mini ed-mini--danger"
+                aria-label="Удалить шаг"
+                @click="removeStep(si, i)"
+              >
+                <Trash2 :size="15" />
+              </button>
+            </div>
           </div>
-          <div class="smart-field editor__time">
-            <span class="smart-field__label">₽</span>
-            <input v-model.number="s.cost" type="number" min="0" inputmode="numeric" />
+          <AppButton variant="dashed" block @click="addStep(si)">
+            <Plus :size="16" /> Шаг
+          </AppButton>
+        </div>
+
+        <!-- Порция и стоимость -->
+        <div class="ed-block">
+          <p class="ed-block__caption"><Coins :size="16" /> Порция и стоимость</p>
+          <div class="editor__row">
+            <div class="smart-field editor__row-grow">
+              <span class="smart-field__label">Порция</span>
+              <input v-model="s.servings" type="text" placeholder="1 форма / 4 порции" />
+            </div>
+            <div class="smart-field editor__cost">
+              <span class="smart-field__label">Стоимость, ₽</span>
+              <input
+                v-model.number="s.cost"
+                type="number"
+                min="0"
+                inputmode="numeric"
+                placeholder="300"
+              />
+            </div>
           </div>
         </div>
 
-        <!-- КБЖУ — по желанию -->
-        <div class="ed-kbju-head">
-          <p class="ed-section__caption">КБЖУ</p>
-          <button v-if="s.kbju" type="button" class="ed-kbju-head__remove" @click="removeKbju(si)">
-            Убрать
-          </button>
+        <!-- КБЖУ -->
+        <div class="ed-block">
+          <div class="ed-kbju-head">
+            <p class="ed-block__caption"><Flame :size="16" /> КБЖУ</p>
+            <button
+              v-if="s.kbju"
+              type="button"
+              class="ed-kbju-head__remove"
+              @click="removeKbju(si)"
+            >
+              Убрать
+            </button>
+          </div>
+          <div v-if="s.kbju" class="ed-kbju">
+            <div class="smart-field">
+              <span class="smart-field__label">Ккал</span>
+              <input v-model.number="s.kbju.cal" type="number" min="0" inputmode="decimal" />
+            </div>
+            <div class="smart-field">
+              <span class="smart-field__label">Белки</span>
+              <input v-model.number="s.kbju.prot" type="number" min="0" inputmode="decimal" />
+            </div>
+            <div class="smart-field">
+              <span class="smart-field__label">Жиры</span>
+              <input v-model.number="s.kbju.fat" type="number" min="0" inputmode="decimal" />
+            </div>
+            <div class="smart-field">
+              <span class="smart-field__label">Углев.</span>
+              <input v-model.number="s.kbju.carb" type="number" min="0" inputmode="decimal" />
+            </div>
+          </div>
+          <AppButton v-else variant="dashed" block @click="addKbju(si)">
+            <Plus :size="16" /> Добавить КБЖУ
+          </AppButton>
         </div>
-        <div v-if="s.kbju" class="ed-kbju">
-          <div class="smart-field">
-            <span class="smart-field__label">К</span>
-            <input v-model.number="s.kbju.cal" type="number" min="0" inputmode="numeric" />
-          </div>
-          <div class="smart-field">
-            <span class="smart-field__label">Б</span>
-            <input v-model.number="s.kbju.prot" type="number" min="0" inputmode="numeric" />
-          </div>
-          <div class="smart-field">
-            <span class="smart-field__label">Ж</span>
-            <input v-model.number="s.kbju.fat" type="number" min="0" inputmode="numeric" />
-          </div>
-          <div class="smart-field">
-            <span class="smart-field__label">У</span>
-            <input v-model.number="s.kbju.carb" type="number" min="0" inputmode="numeric" />
-          </div>
-        </div>
-        <AppButton v-else variant="dashed" block @click="addKbju(si)">
-          <Plus :size="16" /> Добавить КБЖУ
-        </AppButton>
-
-        <!-- Шаги -->
-        <p class="ed-section__caption">Шаги</p>
-        <div v-for="(_, i) in s.steps" :key="i" class="ed-row">
-          <span class="ed-row__num">{{ i + 1 }}</span>
-          <div class="smart-field ed-row__grow">
-            <textarea v-model="s.steps[i]" rows="2" placeholder="Опишите шаг" />
-          </div>
-          <button type="button" class="ed-row__del" aria-label="Удалить" @click="removeStep(si, i)">
-            <Trash2 :size="16" />
-          </button>
-        </div>
-        <AppButton variant="dashed" block @click="addStep(si)"><Plus :size="16" /> Шаг</AppButton>
 
         <!-- Хранение -->
-        <p class="ed-section__caption">Хранение</p>
-        <div v-for="(st, i) in s.storage" :key="st.id" class="ed-row">
-          <div class="smart-field ed-row__grow">
-            <input v-model="st.place" type="text" placeholder="В холодильнике" />
+        <div class="ed-block">
+          <p class="ed-block__caption"><Refrigerator :size="16" /> Хранение</p>
+          <div v-for="(st, i) in s.storage" :key="st.id" class="ed-row">
+            <div class="smart-field ed-row__grow">
+              <input
+                v-model="st.place"
+                type="text"
+                placeholder="В холодильнике"
+                aria-label="Где хранить"
+                :data-field="`storage-${st.id}-place`"
+              />
+            </div>
+            <div class="smart-field ed-row__grow">
+              <input
+                v-model="st.duration"
+                type="text"
+                placeholder="до 1 недели"
+                aria-label="Сколько хранить"
+              />
+            </div>
+            <button
+              type="button"
+              class="ed-row__del"
+              aria-label="Удалить условие хранения"
+              @click="removeStorage(si, i)"
+            >
+              <Trash2 :size="16" />
+            </button>
           </div>
-          <div class="smart-field ed-row__grow">
-            <input v-model="st.duration" type="text" placeholder="до 1 недели" />
-          </div>
-          <button
-            type="button"
-            class="ed-row__del"
-            aria-label="Удалить"
-            @click="removeStorage(si, i)"
-          >
-            <Trash2 :size="16" />
-          </button>
+          <AppButton variant="dashed" block @click="addStorage(si)">
+            <Plus :size="16" /> Условие хранения
+          </AppButton>
         </div>
-        <AppButton variant="dashed" block @click="addStorage(si)">
-          <Plus :size="16" /> Условие хранения
-        </AppButton>
       </section>
 
       <AppButton variant="soft" block @click="addSection">
@@ -565,35 +820,139 @@ function removePhoto(i: number) {
     width: 96px;
     flex: 0 0 auto;
   }
+  &__cost {
+    width: 116px;
+    flex: 0 0 auto;
+  }
 
+  // Липкая кнопка сохранения: подложка «растворяет» поля под ней,
+  // чтобы они не просвечивали сквозь кнопку.
   &__save {
     position: sticky;
     bottom: 0;
+    z-index: 5;
     @include safe-bottom(12px);
-    padding-top: 8px;
+    padding-top: 20px;
+    margin-top: -12px;
+    background: linear-gradient(180deg, transparent, $color-page-bg 45%);
   }
 }
 
 .ed-section {
   @include card($radius-lg);
-  padding: 18px;
+  padding: 16px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-margin-top: 76px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 36px;
+  }
+  &__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 15px;
+    color: $color-heading;
+  }
+  &__num {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $radius-pill;
+    background: $color-sun-dim;
+    color: color-mix(in srgb, $color-sun 45%, $color-text);
+    font-size: 13px;
+  }
+  &__tools {
+    display: flex;
+    gap: 2px;
+  }
+}
+
+// Подблок секции (ингредиенты, замены, шаги…): иконка + подпись + счётчик,
+// между блоками — пунктир, чтобы длинная секция читалась по частям.
+.ed-block {
   display: flex;
   flex-direction: column;
   gap: 10px;
 
-  &__head {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
+  & + & {
+    padding-top: 14px;
+    border-top: 1px dashed $color-border;
   }
-  &__title {
-    flex: 1;
-  }
+
   &__caption {
-    margin-top: 8px;
-    font-weight: 700;
-    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
     color: $color-muted;
+  }
+  &__count {
+    @include pill;
+    padding: 1px 8px;
+    font-size: 12px;
+    letter-spacing: 0;
+    background: $color-accent-dim;
+    color: color-mix(in srgb, $color-accent 70%, $color-text);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// Шапка колонок ингредиентов «Что / Сколько».
+.ed-cols {
+  display: flex;
+  gap: 8px;
+  margin-bottom: -4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: $color-muted;
+  &__spacer {
+    width: 36px;
+    flex: 0 0 auto;
+  }
+}
+
+.ed-hint {
+  font-size: 12px;
+  line-height: 1.35;
+  color: $color-muted;
+}
+
+// Маленькая кнопка-иконка (порядок, удаление) — 36px, тап по пальцу.
+.ed-mini {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-sm;
+  color: $color-muted;
+  @include anim(color);
+  transition-property: color, background-color;
+
+  &:hover:not(:disabled) {
+    color: $color-text;
+    background: $color-surface-2;
+  }
+  &:disabled {
+    opacity: 0.3;
+  }
+  &--danger:hover:not(:disabled) {
+    color: $color-danger;
+    background: rgba($color-danger, 0.08);
   }
 }
 
@@ -780,12 +1139,34 @@ function removePhoto(i: number) {
   align-items: center;
   gap: 8px;
 
+  // Строки, где под полем может появиться ошибка / растёт textarea:
+  // кнопки держим вверху, на уровне поля.
+  &--top {
+    align-items: flex-start;
+    .ed-row__num {
+      margin-top: 10px;
+    }
+  }
+
   &__grow {
     flex: 1;
+    min-width: 0;
   }
   &__amount {
-    width: 84px;
+    width: 96px;
     flex: 0 0 auto;
+  }
+  &__tools {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    .ed-mini {
+      height: 30px;
+    }
+  }
+  &--top &__del {
+    margin-top: 4px;
   }
   &__marker {
     width: 54px;
