@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid'
 import type {
   IngredientDto,
   RecipeDto,
+  RecipeImageDto,
   SectionDto,
   StorageDto,
   SubstitutionDto,
@@ -38,12 +39,16 @@ export class RecipeFactory {
   static kbju(): NonNullable<SectionDto['kbju']> {
     return { cal: 0, prot: 0, fat: 0, carb: 0 }
   }
+  static image(url: string): RecipeImageDto {
+    return { id: uuid(), url }
+  }
   static recipe(categorySlug: string): RecipeDto {
     return {
       id: uuid(),
       title: '',
       category_slug: categorySlug,
       cover_url: null,
+      images: [],
       time_minutes: 30,
       sections: [RecipeFactory.section(1)],
     }

@@ -73,8 +73,8 @@ class RecipesRepository {
     return this.api.remove(id)
   }
 
-  // Заливает обложку и возвращает URL для сохранения в cover_url.
-  async uploadCover(recipeId: string, file: File): Promise<string> {
+  // Заливает фото блюда и возвращает публичный URL (для элемента images).
+  async uploadImage(recipeId: string, file: File): Promise<string> {
     if (!isSupabaseConfigured) {
       // Без бэкенда — локальный предпросмотр в рамках сессии.
       return URL.createObjectURL(file)

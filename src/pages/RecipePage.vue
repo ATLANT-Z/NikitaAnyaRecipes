@@ -11,10 +11,10 @@ import { useAuthStore } from '@/features/auth/model/auth.store'
 import { CategoryVisuals } from '@/features/categories/lib/category-visuals'
 import { TimeHelper } from '@/services/helpers/number.helper'
 import SectionBlock from '@/features/recipes/ui/SectionBlock.vue'
+import RecipeGallery from '@/features/recipes/ui/RecipeGallery.vue'
 import AppScreen from '@/shared/ui/AppScreen.vue'
 import AppHeader from '@/shared/ui/AppHeader.vue'
 import IconButton from '@/shared/ui/IconButton.vue'
-import ImagePlaceholder from '@/shared/ui/ImagePlaceholder.vue'
 import Chip from '@/shared/ui/Chip.vue'
 import Skeleton from '@/shared/ui/Skeleton.vue'
 import EmptyState from '@/shared/ui/EmptyState.vue'
@@ -43,11 +43,16 @@ const categoryTitle = computed(
         </IconButton>
       </template>
       <template #right>
-        <IconButton v-if="recipe" label="В избранное" @click="favActions.toggle(recipe.id)">
+        <IconButton
+          v-if="recipe"
+          :label="fav.isFavorite(recipe.id) ? 'Убрать из избранного' : 'В избранное'"
+          @click="favActions.toggle(recipe.id)"
+        >
           <Heart
             :size="20"
-            :fill="fav.isFavorite(recipe.id) ? '#f0a988' : 'none'"
-            :color="fav.isFavorite(recipe.id) ? '#f0a988' : 'currentColor'"
+            class="recipe__fav"
+            :class="{ 'recipe__fav--on': fav.isFavorite(recipe.id) }"
+            :fill="fav.isFavorite(recipe.id) ? 'currentColor' : 'none'"
           />
         </IconButton>
         <IconButton
@@ -74,14 +79,7 @@ const categoryTitle = computed(
     />
 
     <template v-else>
-      <div class="recipe__cover">
-        <ImagePlaceholder
-          :src="recipe.cover_url"
-          :tone="CategoryVisuals.tone(recipe.category_slug)"
-          :hint="`Аппетитное фото: ${recipe.title.toLowerCase()}`"
-          :alt="recipe.title"
-        />
-      </div>
+      <RecipeGallery :recipe="recipe" />
 
       <h1 class="recipe__title">{{ recipe.title }}</h1>
       <div class="recipe__meta">
@@ -113,16 +111,16 @@ const categoryTitle = computed(
     margin-top: 8px;
   }
 
-  &__cover {
-    aspect-ratio: 16 / 11;
-    border-radius: $radius-lg;
-    overflow: hidden;
-    box-shadow: $shadow-card;
-  }
-
   &__title {
     margin: 18px 0 10px;
     font-size: 30px;
+  }
+
+  &__fav {
+    @include anim(color);
+    &--on {
+      color: $color-favorite;
+    }
   }
 
   &__meta {

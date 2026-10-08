@@ -1,5 +1,6 @@
 // POST /recipe-upsert  { recipe: RecipeDto }  → сохранённый RecipeDto
-// Только для Telegram-админа.
+// Только для админа (JWT сессии + profiles.is_admin).
+// cover_url сервер выводит сам: первое фото галереи (images[0]).
 import { serviceClient, requireAdmin } from '../_shared/admin.ts'
 import { cors, json } from '../_shared/telegram.ts'
 
@@ -15,11 +16,15 @@ interface SectionIn {
   steps: unknown
   storage: unknown
 }
+interface ImageIn {
+  id: string
+  url: string
+}
 interface RecipeIn {
   id: string
   title: string
   category_slug: string
-  cover_url: string | null
+  images?: ImageIn[]
   time_minutes: number
   sections: SectionIn[]
 }
@@ -34,18 +39,28 @@ Deno.serve(async (req) => {
   const { recipe } = (await req.json()) as { recipe: RecipeIn }
   if (!recipe?.title || !recipe.category_slug) return json({ error: 'Invalid recipe' }, 422)
 
+  // Галерея: оставляем только валидные { id, url }, порядок — как прислали.
+  const images = (Array.isArray(recipe.images) ? recipe.images : [])
+    .filter((i) => i && typeof i.url === 'string' && i.url)
+    .map((i) => ({ id: String(i.id), url: i.url }))
+
   // Рецепт
   const upsertRecipe = await sb.from('recipes').upsert({
     id: recipe.id,
     title: recipe.title,
     category_slug: recipe.category_slug,
-    cover_url: recipe.cover_url,
+    images,
+    cover_url: images[0]?.url ?? null,
     time_minutes: recipe.time_minutes,
   })
-  if (upsertRecipe.error) return json({ error: upsertRecipe.error.message }, 500)
+  // 23503 — нет такой категории (FK): это ошибка заполнения, а не сервера.
+  if (upsertRecipe.error) {
+    return json({ error: upsertRecipe.error.message }, upsertRecipe.error.code === '23503' ? 422 : 500)
+  }
 
   // Секции: полностью заменяем (проще и надёжнее для нашей модели).
-  await sb.from('recipe_sections').delete().eq('recipe_id', recipe.id)
+  const delSections = await sb.from('recipe_sections').delete().eq('recipe_id', recipe.id)
+  if (delSections.error) return json({ error: delSections.error.message }, 500)
   if (recipe.sections?.length) {
     const rows = recipe.sections.map((s) => ({
       id: s.id,
@@ -68,7 +83,7 @@ Deno.serve(async (req) => {
   const { data, error } = await sb
     .from('recipes')
     .select(
-      'id, title, category_slug, cover_url, time_minutes, sections:recipe_sections(id, title, sort_order, servings, cost, kbju, ingredients, substitutions, steps, storage)',
+      'id, title, category_slug, cover_url, images, time_minutes, sections:recipe_sections(id, title, sort_order, servings, cost, kbju, ingredients, substitutions, steps, storage)',
     )
     .eq('id', recipe.id)
     .single()

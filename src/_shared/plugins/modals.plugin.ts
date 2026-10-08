@@ -74,11 +74,19 @@ export class ModalsHelper {
       }
 
       resolve(value: any) {
-        if (this.onResolve) this.onResolve(value)
-        this.close()
-      }
-      close() {
+        this.settle(value)
         _close(this.uid)
+      }
+      // Закрытие без результата (×, «Отмена», фон) тоже завершает .wait — null.
+      // Иначе вызывающий код висел бы на await вечно.
+      close() {
+        this.settle(null)
+        _close(this.uid)
+      }
+      private settle(value: any) {
+        const done = this.onResolve
+        this.onResolve = null
+        done?.(value)
       }
       saveDraft(data: Partial<ExtractComponentPublicProps<R[K]>>) {
         _saveDraft(this.storageKey, data)
@@ -90,7 +98,7 @@ export class ModalsHelper {
 
     interface ShowResult<K extends keyof R> {
       modal: ModalContext<K>
-      wait: Promise<{ [P in K]: ExtractModalResult<R[P]> }[K]>
+      wait: Promise<{ [P in K]: ExtractModalResult<R[P]> }[K] | null> // null — закрыли без ответа
     }
 
     type ShowConfig<K extends keyof R> = {

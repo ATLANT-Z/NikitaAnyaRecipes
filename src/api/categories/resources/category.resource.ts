@@ -4,4 +4,5 @@ export interface CategoryDto {
   slug: string
   title: string
   sort_order: number
+  image_url: string | null // задано — плитка показывает это фото; нет — мозаика из блюд
 }

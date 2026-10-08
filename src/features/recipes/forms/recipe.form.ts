@@ -11,7 +11,7 @@ const ingredient = z.object({
 
 const section = z.object({
   id: z.string(),
-  title: z.string().min(1, 'У секции должно быть название (напр. «Тесто»)'),
+  title: z.string(), // необязательно: пустое — секция без заголовка
   sort_order: z.number(),
   servings: z.string().nullable(),
   cost: z.number().nullable(),
@@ -34,6 +34,7 @@ export const RecipeSchema = z.object({
   title: z.string().min(1, 'Впишите название рецепта'),
   category_slug: z.string().min(1, 'Выберите категорию'),
   cover_url: z.string().nullable(),
+  images: z.array(z.object({ id: z.string(), url: z.string() })),
   time_minutes: z.number().min(1, 'Укажите время приготовления'),
   sections: z.array(section).min(1, 'Добавьте хотя бы одну секцию'),
 })

@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { Search, LogIn, LogOut } from 'lucide-vue-next'
+import { Search, LogIn, LogOut, LayoutGrid } from 'lucide-vue-next'
 import { useCategories } from '@/features/categories/model/useCategories'
 import { useCategoryCovers } from '@/features/categories/model/useCategoryCovers'
 import { useAuthStore } from '@/features/auth/model/auth.store'
@@ -18,7 +18,7 @@ const router = useRouter()
 const { categories, isLoading } = useCategories()
 const { coversBySlug } = useCategoryCovers()
 const auth = useAuthStore()
-const { isAuthed } = storeToRefs(auth)
+const { isAuthed, isAdmin } = storeToRefs(auth)
 const notifications = useNotificationsStore()
 const isSearchOpen = ref(false)
 
@@ -34,6 +34,13 @@ async function onLogout() {
       <template #right>
         <IconButton label="Поиск" @click="isSearchOpen = true">
           <Search :size="22" />
+        </IconButton>
+        <IconButton
+          v-if="isAdmin"
+          label="Категории"
+          @click="router.push({ name: 'categories' })"
+        >
+          <LayoutGrid :size="22" />
         </IconButton>
         <IconButton v-if="isAuthed" label="Выйти" @click="onLogout">
           <LogOut :size="22" />

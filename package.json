@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{ts,vue,scss}\""
+    "format": "prettier --write \"src/**/*.{ts,vue,scss}\"",
+    "backup": "node scripts/backup-db.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

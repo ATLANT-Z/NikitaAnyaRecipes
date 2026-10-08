@@ -44,12 +44,14 @@ npm run lint
 ### 2. Создать таблицы
 
 Вариант простой (без CLI): открой в Supabase **SQL Editor** и выполни по очереди
-две миграции (**Run** для каждой):
+миграции (**Run** для каждой):
 
 1. [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — таблицы
    рецептов, RLS, бакет обложек, сид категорий.
 2. [`supabase/migrations/0002_auth.sql`](supabase/migrations/0002_auth.sql) — профили
    пользователей (email+пароль), автосоздание профиля при регистрации, супер-админы.
+3. [`supabase/migrations/0003_categories_images.sql`](supabase/migrations/0003_categories_images.sql)
+   — фото у категорий и галерея фото у рецепта (старые обложки переносятся сами).
 
 ### 2.1. Отключить подтверждение email
 
@@ -78,7 +80,7 @@ supabase link --project-ref <ID-проекта>   # ID виден в URL даш�
 supabase secrets set TELEGRAM_BOT_TOKEN=<токен_бота>
 supabase secrets set ADMIN_SECRET=<секретный_ключ_админа>
 
-supabase functions deploy bot recipe-upsert recipe-delete cover-upload --no-verify-jwt
+supabase functions deploy bot recipe-upsert recipe-delete cover-upload category-upsert category-delete --no-verify-jwt
 ```
 
 ### 6. Включить вебхук бота

@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: '/categories',
+    name: 'categories',
+    component: () => import('@/pages/CategoriesPage.vue'),
+    meta: { requiresAdmin: true },
+  },
+  {
     path: '/new',
     name: 'recipe-new',
     component: () => import('@/pages/RecipeEditor.vue'),

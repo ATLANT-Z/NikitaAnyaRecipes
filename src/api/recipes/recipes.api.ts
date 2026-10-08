@@ -5,7 +5,7 @@ import type { RecipeCardDto, RecipeCoverDto, RecipeDto } from './resources/recip
 // Секции хранятся денормализованно (jsonb-массивы внутри recipe_sections),
 // поэтому один вложенный select возвращает уже готовый DTO. См. docs/tech-debt.md.
 const RECIPE_SELECT = `
-  id, title, category_slug, cover_url, time_minutes,
+  id, title, category_slug, cover_url, images, time_minutes,
   sections:recipe_sections(
     id, title, sort_order, servings, cost, kbju,
     ingredients, substitutions, steps, storage

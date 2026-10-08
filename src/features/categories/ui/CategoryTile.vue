@@ -9,8 +9,11 @@ const props = withDefaults(defineProps<{ category: CategoryDto; covers?: string[
   covers: () => [],
 })
 
-// До 4 обложек; раскладка мозаики зависит от их числа (см. --1…--4 в стилях).
-const shown = computed(() => props.covers.slice(0, 4))
+// Своё фото категории важнее; нет — мозаика до 4 обложек блюд
+// (раскладка зависит от их числа, см. --1…--4 в стилях).
+const shown = computed(() =>
+  props.category.image_url ? [props.category.image_url] : props.covers.slice(0, 4),
+)
 </script>
 
 <template>

@@ -5,14 +5,14 @@ import type { RecipeDto } from '@/api/recipes/resources/recipe.resource'
 // Вайшнавская кухня: без мяса/рыбы/яиц/лука/чеснока.
 
 export const CATEGORIES_FIXTURE: CategoryDto[] = [
-  { id: 'c-soup', slug: 'soup', title: 'Суп', sort_order: 1 },
-  { id: 'c-hot', slug: 'hot', title: 'Горячее', sort_order: 2 },
-  { id: 'c-salad', slug: 'salad', title: 'Салат', sort_order: 3 },
-  { id: 'c-snack', slug: 'snack', title: 'Закуски', sort_order: 4 },
-  { id: 'c-dessert', slug: 'dessert', title: 'Десерт', sort_order: 5 },
-  { id: 'c-drink', slug: 'drink', title: 'Напиток', sort_order: 6 },
-  { id: 'c-baking', slug: 'baking', title: 'Выпечка', sort_order: 7 },
-  { id: 'c-cake', slug: 'cake', title: 'Торт', sort_order: 8 },
+  { id: 'c-soup', slug: 'soup', title: 'Суп', sort_order: 1, image_url: null },
+  { id: 'c-hot', slug: 'hot', title: 'Горячее', sort_order: 2, image_url: null },
+  { id: 'c-salad', slug: 'salad', title: 'Салат', sort_order: 3, image_url: null },
+  { id: 'c-snack', slug: 'snack', title: 'Закуски', sort_order: 4, image_url: null },
+  { id: 'c-dessert', slug: 'dessert', title: 'Десерт', sort_order: 5, image_url: null },
+  { id: 'c-drink', slug: 'drink', title: 'Напиток', sort_order: 6, image_url: null },
+  { id: 'c-baking', slug: 'baking', title: 'Выпечка', sort_order: 7, image_url: null },
+  { id: 'c-cake', slug: 'cake', title: 'Торт', sort_order: 8, image_url: null },
 ]
 
 export const RECIPES_FIXTURE: RecipeDto[] = [
@@ -21,7 +21,8 @@ export const RECIPES_FIXTURE: RecipeDto[] = [
     title: 'Кулич',
     category_slug: 'dessert',
     cover_url: null,
-    time_minutes: 60,
+    images: [],
+    time_minutes:60,
     sections: [
       {
         id: 's-kulich-dough',
@@ -75,7 +76,8 @@ export const RECIPES_FIXTURE: RecipeDto[] = [
     title: 'Панир с овощами',
     category_slug: 'hot',
     cover_url: null,
-    time_minutes: 40,
+    images: [],
+    time_minutes:40,
     sections: [
       {
         id: 's-paneer',
@@ -106,7 +108,8 @@ export const RECIPES_FIXTURE: RecipeDto[] = [
     title: 'Манговый ласси',
     category_slug: 'drink',
     cover_url: null,
-    time_minutes: 10,
+    images: [],
+    time_minutes:10,
     sections: [
       {
         id: 's-lassi',

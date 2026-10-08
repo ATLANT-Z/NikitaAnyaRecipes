@@ -31,7 +31,7 @@ src/
 
 - Каждый api-класс наследует `BaseApi` (`_shared/api/base.api.ts`), регистрируется в `api/api.ts`.
 - **Чтение** — через `this.sb.from(...).select()`, снятие через `BaseApi.unwrap()`.
-- **Запись** — только через `this._fn('edge-function', body)`: Edge Function проверяет Telegram initData + права админа. `service_role` живёт на сервере.
+- **Запись** — только через `this._fn('edge-function', body)`: Edge Function проверяет JWT сессии + `profiles.is_admin`. `service_role` живёт на сервере.
 - 4xx → `ErrorHelper.map(SE._4xx('текст'))` → типизированный `AppError` с человеческим сообщением.
 - DTO — в `api/<feature>/resources/*.resource.ts`. Enum — `*.enum.ts`.
 
@@ -81,6 +81,13 @@ src/
 - Записи (`_fn`) уходят с заголовком `Authorization: Bearer <JWT сессии>`; Edge Function проверяет `profiles.is_admin` (`_shared/admin.ts → requireAdmin`).
 - **Супер-админ** — Telegram-личность: кто знает `ADMIN_SECRET`, тот `/me_admin` в боте → строка в `super_admins`. Супер-админ раздаёт админки по email: `/users`, `/grant <email>`, `/revoke <email>` (см. `supabase/functions/bot`).
 - Dev без `.env` (фикстуры): превью edit-режима через `?admin=1` (в `auth.store` init).
+
+## Фото и категории
+
+- Рецепт: галерея `images: {id,url}[]`, порядок массива = порядок показа. `cover_url` — производное (= `images[0]`), его выставляет `recipe-upsert`; карточки и мозаика читают только `cover_url`.
+- Категории правит админ на `/categories` (модалка `category-edit`, функции `category-upsert`/`category-delete`). `slug` существующей категории неизменен (адрес + FK рецептов); удалить можно только пустую.
+- Плитка категории: `image_url` → мозаика из обложек блюд (избранные первыми) → цвет-заглушка.
+- Модалки: `close()` завершает `.wait` значением `null` — всегда обрабатывать «закрыли без ответа».
 
 ## Команды
 

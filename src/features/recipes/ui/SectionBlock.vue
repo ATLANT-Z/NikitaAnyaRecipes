@@ -13,7 +13,7 @@ defineProps<Props>()
 
 <template>
   <section class="section">
-    <h2 class="section__title">{{ section.title }}</h2>
+    <h2 v-if="section.title" class="section__title">{{ section.title }}</h2>
 
     <!-- Ингредиенты (чек-лист) -->
     <ul class="section__ingredients">

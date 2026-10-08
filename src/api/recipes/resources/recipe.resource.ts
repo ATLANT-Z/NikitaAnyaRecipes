@@ -27,6 +27,12 @@ export interface StorageDto {
   duration: string // «до 1 месяца»
 }
 
+// Фото блюда. Порядок в массиве = порядок галереи; первое фото = обложка.
+export interface RecipeImageDto {
+  id: string
+  url: string
+}
+
 export interface SectionDto {
   id: string
   title: string
@@ -58,5 +64,6 @@ export interface RecipeCoverDto {
 // Полный рецепт (экран рецепта).
 export interface RecipeDto extends RecipeCardDto {
   time_minutes: number
+  images: RecipeImageDto[] // галерея; cover_url = images[0]?.url (ставит сервер)
   sections: SectionDto[]
 }
