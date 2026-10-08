@@ -5,6 +5,7 @@ import { ImagePlus, Loader2 } from 'lucide-vue-next'
 import type { CategoryDto } from '@/api/categories/resources/category.resource'
 import { categoriesRepository } from '@/repository/categories.repository'
 import { useCategorySave } from '@/features/categories/model/useCategorySave'
+import { useCategories } from '@/features/categories/model/useCategories'
 import { CategoryVisuals } from '@/features/categories/lib/category-visuals'
 import { SlugHelper } from '@/services/helpers/slug.helper'
 import { useHandleError } from '@/_shared/composables/useHandleError'
@@ -32,9 +33,16 @@ const draft = ref<CategoryDto>(
     : { id: uuid(), slug: '', title: '', sort_order: props.nextSortOrder, image_url: null },
 )
 
-// slug существующей неизменен; у новой — выводим из названия (видно превью).
+// slug существующей неизменен; у новой — выводим из названия и, если адрес
+// занят, добавляем номер (превью показывает итоговый адрес; сервер перепроверит).
+const { categories } = useCategories()
 const slug = computed(() =>
-  isNew ? SlugHelper.fromTitle(draft.value.title) : draft.value.slug,
+  isNew
+    ? SlugHelper.unique(
+        SlugHelper.fromTitle(draft.value.title),
+        (categories.value ?? []).map((c) => c.slug),
+      )
+    : draft.value.slug,
 )
 
 const submitted = ref(false)
@@ -90,7 +98,7 @@ async function onSubmit() {
       </div>
 
       <div class="cat-form__photo-block">
-        <span class="smart-field__label">Фото плитки · по желанию</span>
+        <span class="smart-field__label">Фото плитки</span>
         <button
           type="button"
           class="cat-form__photo"

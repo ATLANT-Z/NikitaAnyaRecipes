@@ -5,6 +5,7 @@ import { AppError } from '@/_shared/api/errors'
 import { isSupabaseConfigured } from '@/_shared/supabase/isConfigured'
 import { CATEGORIES_FIXTURE, RECIPES_FIXTURE } from '@/_shared/mock/fixtures'
 import { FileHelper } from '@/services/helpers/file.helper'
+import { SlugHelper } from '@/services/helpers/slug.helper'
 
 // Тонкий фасад над api. Пока нет Supabase — отдаёт фикстуры (docs/tech-debt.md #1).
 class CategoriesRepository {
@@ -20,11 +21,17 @@ class CategoriesRepository {
   async save(category: CategoryDto): Promise<CategoryDto> {
     if (!isSupabaseConfigured) {
       const idx = CATEGORIES_FIXTURE.findIndex((c) => c.id === category.id)
-      const clash = CATEGORIES_FIXTURE.some((c) => c.slug === category.slug && c.id !== category.id)
-      if (clash) throw new AppError(409, 'Категория с таким адресом уже есть')
-      if (idx >= 0) CATEGORIES_FIXTURE[idx] = category
-      else CATEGORIES_FIXTURE.push(category)
-      return category
+      if (idx >= 0) {
+        // slug существующей не меняем — как на сервере.
+        CATEGORIES_FIXTURE[idx] = { ...category, slug: CATEGORIES_FIXTURE[idx].slug }
+        return CATEGORIES_FIXTURE[idx]
+      }
+      const created = {
+        ...category,
+        slug: SlugHelper.unique(category.slug, CATEGORIES_FIXTURE.map((c) => c.slug)),
+      }
+      CATEGORIES_FIXTURE.push(created)
+      return created
     }
     return this.api.upsert(category)
   }

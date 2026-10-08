@@ -393,9 +393,7 @@ function removePhoto(i: number) {
       <section v-for="(s, si) in draft.sections" :key="s.id" class="ed-section">
         <div class="ed-section__head">
           <div class="smart-field ed-section__title">
-            <span class="smart-field__label">
-              Секция {{ si + 1 }} <span class="ed-optional">· название по желанию</span>
-            </span>
+            <span class="smart-field__label">Секция {{ si + 1 }}</span>
             <input v-model="s.title" type="text" placeholder="Тесто / Крем / Основа" />
           </div>
           <IconButton
@@ -602,10 +600,6 @@ function removePhoto(i: number) {
 .ed-req {
   color: $color-danger;
   font-weight: 800;
-}
-.ed-optional {
-  font-weight: 500;
-  opacity: 0.8;
 }
 
 // ─── Галерея фото ───

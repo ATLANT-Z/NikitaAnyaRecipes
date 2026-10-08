@@ -21,4 +21,17 @@ export class SlugHelper {
       .slice(0, 40)
     return slug || `cat-${uuid().slice(0, 8)}`
   }
+
+  // Транслит теряет различия (ь/ъ, ё/е, ы/й): «Брат» и «Брать» → brat.
+  // Занятый адрес получает номер: brat → brat-2 → brat-3.
+  // То же правило продублировано в supabase/functions/category-upsert.
+  static unique(base: string, taken: Iterable<string>): string {
+    const used = new Set(taken)
+    if (!used.has(base)) return base
+    for (let n = 2; ; n++) {
+      const suffix = `-${n}`
+      const candidate = base.slice(0, 40 - suffix.length).replace(/-+$/, '') + suffix
+      if (!used.has(candidate)) return candidate
+    }
+  }
 }
