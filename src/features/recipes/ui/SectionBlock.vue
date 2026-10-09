@@ -68,8 +68,8 @@ const hasInfo = computed(
             @update:model-value="onSet(ing.id, $event)"
           >
             <span class="ing">
+              <span class="ing__amount">{{ ing.amount }}</span>
               <span class="ing__name">{{ ing.name }}</span>
-              <span v-if="ing.amount" class="ing__amount">{{ ing.amount }}</span>
             </span>
           </AppCheckbox>
         </li>
@@ -258,23 +258,23 @@ const hasInfo = computed(
   }
 }
 
-// Строка ингредиента: название слева, количество — ровной колонкой справа.
+// Строка ингредиента: количество — ровной колонкой слева, затем название.
 .ing {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
 
-  &__name {
-    flex: 1;
-    min-width: 0;
-  }
   &__amount {
     flex: 0 0 auto;
-    max-width: 45%;
-    text-align: right;
+    min-width: 72px;
+    max-width: 40%;
     color: $color-muted;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+  }
+  &__name {
+    flex: 1;
+    min-width: 0;
   }
 }
 

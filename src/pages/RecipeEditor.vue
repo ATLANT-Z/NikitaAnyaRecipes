@@ -155,17 +155,17 @@ async function moveSection(from: number, to: number) {
 function addIngredient(si: number) {
   const ing = RecipeFactory.ingredient()
   draft.value!.sections[si].ingredients.push(ing)
-  focusField(`ing-${ing.id}-name`)
+  focusField(`ing-${ing.id}-amount`)
 }
 function removeIngredient(si: number, ii: number) {
   draft.value!.sections[si].ingredients.splice(ii, 1)
 }
-// Enter: название → количество → следующая строка (на последней — новая).
+// Enter: количество → название → следующая строка (на последней — новая).
 function onIngredientEnter(si: number, ii: number, part: 'name' | 'amount') {
   const list = draft.value!.sections[si].ingredients
-  if (part === 'name') return focusField(`ing-${list[ii].id}-amount`)
+  if (part === 'amount') return focusField(`ing-${list[ii].id}-name`)
   if (ii === list.length - 1) return addIngredient(si)
-  focusField(`ing-${list[ii + 1].id}-name`)
+  focusField(`ing-${list[ii + 1].id}-amount`)
 }
 
 function addSub(si: number) {
@@ -541,7 +541,7 @@ function removePhoto(i: number) {
           />
         </div>
 
-        <!-- Ингредиенты: название → количество; Enter ведёт дальше -->
+        <!-- Ингредиенты: количество → название; Enter ведёт дальше -->
         <div class="ed-block">
           <p class="ed-block__caption">
             <ShoppingBasket :size="16" /> Ингредиенты <span class="ed-req">*</span>
@@ -550,11 +550,22 @@ function removePhoto(i: number) {
             </span>
           </p>
           <div v-if="s.ingredients.length" class="ed-cols" aria-hidden="true">
-            <span class="ed-row__grow">Что</span>
             <span class="ed-row__amount">Сколько</span>
+            <span class="ed-row__grow">Что</span>
             <span class="ed-cols__spacer" />
           </div>
           <div v-for="(ing, ii) in s.ingredients" :key="ing.id" class="ed-row ed-row--top">
+            <div class="smart-field ed-row__amount">
+              <input
+                v-model="ing.amount"
+                type="text"
+                placeholder="500 г"
+                aria-label="Количество"
+                enterkeyhint="next"
+                :data-field="`ing-${ing.id}-amount`"
+                @keydown.enter.prevent="onIngredientEnter(si, ii, 'amount')"
+              />
+            </div>
             <div class="smart-field ed-row__grow">
               <input
                 v-model="ing.name"
@@ -570,17 +581,6 @@ function removePhoto(i: number) {
                   {{ fieldError('sections', si, 'ingredients', ii, 'name') }}
                 </span>
               </span>
-            </div>
-            <div class="smart-field ed-row__amount">
-              <input
-                v-model="ing.amount"
-                type="text"
-                placeholder="500 г"
-                aria-label="Количество"
-                enterkeyhint="next"
-                :data-field="`ing-${ing.id}-amount`"
-                @keydown.enter.prevent="onIngredientEnter(si, ii, 'amount')"
-              />
             </div>
             <button
               type="button"
@@ -911,7 +911,7 @@ function removePhoto(i: number) {
   }
 }
 
-// Шапка колонок ингредиентов «Что / Сколько».
+// Шапка колонок ингредиентов «Сколько / Что».
 .ed-cols {
   display: flex;
   gap: 8px;
