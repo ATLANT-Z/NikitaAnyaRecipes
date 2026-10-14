@@ -6,7 +6,25 @@ import { z } from 'zod'
 const ingredient = z.object({
   id: z.string(),
   amount: z.string(),
-  name: z.string().min(1, 'Впишите ингредиент или удалите строку'),
+  name: z.string(),
+  is_group: z.boolean().optional(), // заголовок группы — название не обязательно
+})
+
+// Пустое название — ошибка только у ингредиента (не у заголовка группы);
+// нужен хотя бы один настоящий ингредиент.
+const ingredients = z.array(ingredient).superRefine((list, ctx) => {
+  list.forEach((it, i) => {
+    if (!it.is_group && !it.name.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [i, 'name'],
+        message: 'Впишите ингредиент или удалите строку',
+      })
+    }
+  })
+  if (!list.some((it) => !it.is_group)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Добавьте хотя бы один ингредиент' })
+  }
 })
 
 const section = z.object({
@@ -23,7 +41,7 @@ const section = z.object({
       carb: z.number(),
     })
     .nullable(),
-  ingredients: z.array(ingredient).min(1, 'Добавьте хотя бы один ингредиент'),
+  ingredients,
   substitutions: z.array(z.object({ id: z.string(), marker: z.string(), text: z.string() })),
   steps: z.array(z.string()),
   storage: z.array(z.object({ id: z.string(), place: z.string(), duration: z.string() })),

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Check, ChefHat, Coins, Refrigerator, ShoppingBasket } from 'lucide-vue-next'
 import type { SectionDto } from '@/api/recipes/resources/recipe.resource'
 import { NumberHelper } from '@/services/helpers/number.helper'
+import { IngredientGroups } from '@/features/recipes/lib/ingredient-groups'
 import AppCheckbox from '@/shared/ui/AppCheckbox.vue'
 
 // Секция рецепта в «режиме готовки»: чек-лист ингредиентов, отмечаемые шаги,
@@ -18,11 +19,16 @@ const props = defineProps<Props>()
 // Шаги без id — ключ отметки по позиции внутри секции.
 const stepKey = (i: number) => `step:${props.section.id}:${i}`
 
-const checkedCount = computed(
-  () => props.section.ingredients.filter((i) => props.isChecked(i.id)).length,
-)
+// Группы ингредиентов: пунктир-разделитель только между группами.
+const groups = computed(() => IngredientGroups.split(props.section.ingredients))
+const items = computed(() => IngredientGroups.items(props.section.ingredients))
+// Разделитель перед группой: у первой — только если у неё есть название.
+const hasDivider = (gi: number) =>
+  !!groups.value[gi].header?.name.trim() || (gi > 0 && groups.value.length > 1)
+
+const checkedCount = computed(() => items.value.filter((i) => props.isChecked(i.id)).length)
 const isAllChecked = computed(
-  () => props.section.ingredients.length > 0 && checkedCount.value === props.section.ingredients.length,
+  () => items.value.length > 0 && checkedCount.value === items.value.length,
 )
 
 const kbjuStats = computed(() => {
@@ -55,25 +61,33 @@ const hasInfo = computed(
         <span
           class="section__progress"
           :class="{ 'section__progress--done': isAllChecked }"
-          :aria-label="`Отмечено ${checkedCount} из ${section.ingredients.length}`"
+          :aria-label="`Отмечено ${checkedCount} из ${items.length}`"
         >
-          {{ checkedCount }}/{{ section.ingredients.length }}
+          {{ checkedCount }}/{{ items.length }}
         </span>
       </p>
-      <ul class="section__ingredients">
-        <li v-for="ing in section.ingredients" :key="ing.id">
-          <AppCheckbox
-            block
-            :model-value="isChecked(ing.id)"
-            @update:model-value="onSet(ing.id, $event)"
-          >
-            <span class="ing">
-              <span class="ing__amount">{{ ing.amount }}</span>
-              <span class="ing__name">{{ ing.name }}</span>
-            </span>
-          </AppCheckbox>
-        </li>
-      </ul>
+      <div v-for="(g, gi) in groups" :key="g.key" class="ing-group">
+        <p
+          v-if="hasDivider(gi)"
+          class="ing-group__divider"
+          :class="{ 'ing-group__divider--plain': !g.header?.name.trim() }"
+        >
+          <span v-if="g.header?.name.trim()" class="ing-group__title">{{ g.header.name }}</span>
+        </p>
+        <ul class="ing-group__list">
+          <li v-for="{ ing } in g.items" :key="ing.id">
+            <AppCheckbox
+              block
+              dense
+              :model-value="isChecked(ing.id)"
+              @update:model-value="onSet(ing.id, $event)"
+            >
+              <span v-if="ing.amount" class="ing__amount">{{ ing.amount }}</span>
+              {{ ing.name }}
+            </AppCheckbox>
+          </li>
+        </ul>
+      </div>
 
       <!-- Замены — сразу под ингредиентами, к которым относятся -->
       <div v-if="section.substitutions.length" class="section__subs">
@@ -192,15 +206,6 @@ const hasInfo = computed(
     }
   }
 
-  &__ingredients {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-
-    li + li {
-      border-top: 1px dashed $color-border;
-    }
-  }
 
   &__subs {
     padding: 12px 14px;
@@ -258,24 +263,55 @@ const hasInfo = computed(
   }
 }
 
-// Строка ингредиента: количество — ровной колонкой слева, затем название.
-.ing {
+// Группа ингредиентов: строки идут плотно, пунктир — только между группами.
+.ing-group {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  flex-direction: column;
 
-  &__amount {
-    flex: 0 0 auto;
-    min-width: 72px;
-    max-width: 40%;
-    color: $color-muted;
+  & + & {
+    margin-top: 8px;
+  }
+
+  &__divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+    color: color-mix(in srgb, $color-peach 70%, $color-text);
+    font-size: 12px;
     font-weight: 700;
-    font-variant-numeric: tabular-nums;
+
+    // Пунктир слева и справа от названия (или сплошной, если названия нет).
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      border-top: 1.5px dashed $color-peach;
+    }
+    &--plain {
+      margin: 2px 0 6px;
+      &::after {
+        display: none;
+      }
+    }
   }
-  &__name {
-    flex: 1;
-    min-width: 0;
+  &__title {
+    flex: 0 1 auto;
+    max-width: 70%;
+    text-align: center;
   }
+
+  &__list {
+    list-style: none;
+  }
+}
+
+// Строка ингредиента в одну линию: «195 г молоко кокосовое».
+.ing__amount {
+  margin-right: 4px;
+  color: $color-muted;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .step {

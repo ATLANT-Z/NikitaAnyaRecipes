@@ -3,13 +3,14 @@ import { CheckboxRoot, CheckboxIndicator } from 'reka-ui'
 import { Check } from 'lucide-vue-next'
 
 // Доступный чекбокс (reka-ui). Используется в чек-листе ингредиентов.
-// block — на всю ширину строки с крупной зоной тапа (удобно на кухне).
+// block — на всю ширину строки с крупной зоной тапа (удобно на кухне);
+// dense — плотные строки (длинные списки ингредиентов).
 const model = defineModel<boolean>({ default: false })
-defineProps<{ label?: string; block?: boolean }>()
+defineProps<{ label?: string; block?: boolean; dense?: boolean }>()
 </script>
 
 <template>
-  <label class="check" :class="{ 'check--block': block }">
+  <label class="check" :class="{ 'check--block': block, 'check--dense': dense }">
     <CheckboxRoot v-model="model" class="check__box">
       <CheckboxIndicator class="check__indicator">
         <Check :size="14" :stroke-width="3" />
@@ -41,6 +42,18 @@ defineProps<{ label?: string; block?: boolean }>()
     .check__label {
       flex: 1;
       min-width: 0;
+    }
+  }
+  &--dense {
+    min-height: 34px;
+    gap: 10px;
+    .check__box {
+      width: 20px;
+      height: 20px;
+    }
+    .check__label {
+      font-size: 14px;
+      line-height: 1.35;
     }
   }
 

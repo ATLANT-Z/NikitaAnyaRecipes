@@ -24,6 +24,7 @@ import { TimeHelper } from '@/services/helpers/number.helper'
 import type { RecipeDto } from '@/api/recipes/resources/recipe.resource'
 import { recipesRepository } from '@/repository/recipes.repository'
 import { RecipeFactory } from '@/features/recipes/lib/recipe-factory'
+import { IngredientGroups } from '@/features/recipes/lib/ingredient-groups'
 import { RecipeSchema } from '@/features/recipes/forms/recipe.form'
 import { useRecipeSave } from '@/features/recipes/model/useRecipeSave'
 import { useCategories } from '@/features/categories/model/useCategories'
@@ -152,20 +153,55 @@ async function moveSection(from: number, to: number) {
   resizeSteps()
 }
 
-function addIngredient(si: number) {
+// at — позиция в плоском списке (конец нужной группы); по умолчанию в конец.
+function addIngredient(si: number, at?: number) {
+  const list = draft.value!.sections[si].ingredients
   const ing = RecipeFactory.ingredient()
-  draft.value!.sections[si].ingredients.push(ing)
+  list.splice(at ?? list.length, 0, ing)
   focusField(`ing-${ing.id}-amount`)
 }
 function removeIngredient(si: number, ii: number) {
   draft.value!.sections[si].ingredients.splice(ii, 1)
 }
-// Enter: количество → название → следующая строка (на последней — новая).
+// Enter: количество → название → следующая строка группы (на последней — новая).
 function onIngredientEnter(si: number, ii: number, part: 'name' | 'amount') {
   const list = draft.value!.sections[si].ingredients
   if (part === 'amount') return focusField(`ing-${list[ii].id}-name`)
-  if (ii === list.length - 1) return addIngredient(si)
-  focusField(`ing-${list[ii + 1].id}-amount`)
+  const next = list[ii + 1]
+  if (!next || next.is_group) return addIngredient(si, ii + 1)
+  focusField(`ing-${next.id}-amount`)
+}
+
+// ─── Группы ингредиентов ───
+// Первая группа без заголовка получает его при появлении второй — чтобы
+// у каждой группы было поле названия («Тесто», «1-я группа»…).
+function addIngredientGroup(si: number) {
+  const list = draft.value!.sections[si].ingredients
+  if (!list[0]?.is_group) list.unshift(RecipeFactory.ingredientGroup())
+  const header = RecipeFactory.ingredientGroup()
+  list.push(header, RecipeFactory.ingredient())
+  focusField(`ing-${header.id}-name`)
+}
+
+async function removeIngredientGroup(si: number, gi: number) {
+  const list = draft.value!.sections[si].ingredients
+  const g = IngredientGroups.split(list)[gi]
+  const hasContent = g.items.some((r) => r.ing.name.trim() || r.ing.amount.trim())
+  if (hasContent) {
+    const title = g.header?.name.trim()
+    const ok = await modals.show('confirm', {
+      props: {
+        title: `Удалить группу${title ? ` «${title}»` : ` ${gi + 1}`}?`,
+        message: 'Ингредиенты этой группы тоже удалятся.',
+        confirmText: 'Удалить',
+        danger: true,
+      },
+    }).wait
+    if (!ok) return
+  }
+  const from = g.headerIndex >= 0 ? g.headerIndex : 0
+  list.splice(from, g.end - from)
+  if (!IngredientGroups.items(list).length) list.push(RecipeFactory.ingredient())
 }
 
 function addSub(si: number) {
@@ -227,7 +263,7 @@ function clean(recipe: RecipeDto): RecipeDto {
   r.sections.forEach((s, i) => (s.sort_order = i + 1))
   for (const s of r.sections) {
     s.title = s.title.trim()
-    s.ingredients = s.ingredients.filter((i) => i.name.trim())
+    s.ingredients = IngredientGroups.clean(s.ingredients)
     s.substitutions = s.substitutions.filter((x) => x.text.trim())
     s.steps = s.steps.map((x) => x.trim()).filter(Boolean)
     s.storage = s.storage.filter((x) => x.place.trim())
@@ -541,12 +577,15 @@ function removePhoto(i: number) {
           />
         </div>
 
-        <!-- Ингредиенты: количество → название; Enter ведёт дальше -->
+        <!-- Ингредиенты: количество → название; Enter ведёт дальше; можно группами -->
         <div class="ed-block">
           <p class="ed-block__caption">
             <ShoppingBasket :size="16" /> Ингредиенты <span class="ed-req">*</span>
-            <span v-if="s.ingredients.some((i) => i.name.trim())" class="ed-block__count">
-              {{ s.ingredients.filter((i) => i.name.trim()).length }}
+            <span
+              v-if="IngredientGroups.items(s.ingredients).some((i) => i.name.trim())"
+              class="ed-block__count"
+            >
+              {{ IngredientGroups.items(s.ingredients).filter((i) => i.name.trim()).length }}
             </span>
           </p>
           <div v-if="s.ingredients.length" class="ed-cols" aria-hidden="true">
@@ -554,48 +593,82 @@ function removePhoto(i: number) {
             <span class="ed-row__grow">Что</span>
             <span class="ed-cols__spacer" />
           </div>
-          <div v-for="(ing, ii) in s.ingredients" :key="ing.id" class="ed-row ed-row--top">
-            <div class="smart-field ed-row__amount">
-              <input
-                v-model="ing.amount"
-                type="text"
-                placeholder="500 г"
-                aria-label="Количество"
-                enterkeyhint="next"
-                :data-field="`ing-${ing.id}-amount`"
-                @keydown.enter.prevent="onIngredientEnter(si, ii, 'amount')"
-              />
+
+          <!-- Группы: пунктир только между ними; у каждой своё название -->
+          <div
+            v-for="(g, gi) in IngredientGroups.split(s.ingredients)"
+            :key="g.key"
+            class="ed-group"
+          >
+            <div v-if="g.header" class="ed-group__head">
+              <div class="smart-field ed-row__grow">
+                <input
+                  v-model="g.header.name"
+                  type="text"
+                  :placeholder="`Группа ${gi + 1}: тесто, крем, начинка…`"
+                  aria-label="Название группы ингредиентов"
+                  :data-field="`ing-${g.header.id}-name`"
+                />
+              </div>
+              <button
+                v-if="IngredientGroups.split(s.ingredients).length > 1"
+                type="button"
+                class="ed-row__del"
+                aria-label="Удалить группу ингредиентов"
+                @click="removeIngredientGroup(si, gi)"
+              >
+                <Trash2 :size="16" />
+              </button>
             </div>
-            <div class="smart-field ed-row__grow">
-              <input
-                v-model="ing.name"
-                type="text"
-                placeholder="мука"
-                aria-label="Ингредиент"
-                enterkeyhint="next"
-                :data-field="`ing-${ing.id}-name`"
-                @keydown.enter.prevent="onIngredientEnter(si, ii, 'name')"
-              />
-              <span v-if="fieldError('sections', si, 'ingredients', ii, 'name')" class="ui-errors">
-                <span class="ui-error">
-                  {{ fieldError('sections', si, 'ingredients', ii, 'name') }}
+
+            <div v-for="{ ing, index: ii } in g.items" :key="ing.id" class="ed-row ed-row--top">
+              <div class="smart-field ed-row__amount">
+                <input
+                  v-model="ing.amount"
+                  type="text"
+                  placeholder="500 г"
+                  aria-label="Количество"
+                  enterkeyhint="next"
+                  :data-field="`ing-${ing.id}-amount`"
+                  @keydown.enter.prevent="onIngredientEnter(si, ii, 'amount')"
+                />
+              </div>
+              <div class="smart-field ed-row__grow">
+                <input
+                  v-model="ing.name"
+                  type="text"
+                  placeholder="мука"
+                  aria-label="Ингредиент"
+                  enterkeyhint="next"
+                  :data-field="`ing-${ing.id}-name`"
+                  @keydown.enter.prevent="onIngredientEnter(si, ii, 'name')"
+                />
+                <span v-if="fieldError('sections', si, 'ingredients', ii, 'name')" class="ui-errors">
+                  <span class="ui-error">
+                    {{ fieldError('sections', si, 'ingredients', ii, 'name') }}
+                  </span>
                 </span>
-              </span>
+              </div>
+              <button
+                type="button"
+                class="ed-row__del"
+                aria-label="Удалить ингредиент"
+                @click="removeIngredient(si, ii)"
+              >
+                <Trash2 :size="16" />
+              </button>
             </div>
-            <button
-              type="button"
-              class="ed-row__del"
-              aria-label="Удалить ингредиент"
-              @click="removeIngredient(si, ii)"
-            >
-              <Trash2 :size="16" />
-            </button>
+
+            <AppButton variant="dashed" block @click="addIngredient(si, g.end)">
+              <Plus :size="16" /> Ингредиент
+            </AppButton>
           </div>
+
           <span v-if="fieldError('sections', si, 'ingredients')" class="ed-error">
             {{ fieldError('sections', si, 'ingredients') }}
           </span>
-          <AppButton variant="dashed" block @click="addIngredient(si)">
-            <Plus :size="16" /> Ингредиент
+          <AppButton variant="ghost" block @click="addIngredientGroup(si)">
+            <Plus :size="16" /> Группа ингредиентов
           </AppButton>
         </div>
 
@@ -908,6 +981,29 @@ function removePhoto(i: number) {
     background: $color-accent-dim;
     color: color-mix(in srgb, $color-accent 70%, $color-text);
     font-variant-numeric: tabular-nums;
+  }
+}
+
+// Группа ингредиентов в форме: пунктир — только между группами.
+.ed-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  & + & {
+    margin-top: 6px;
+    padding-top: 14px;
+    border-top: 1.5px dashed $color-peach;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    input {
+      font-weight: 700;
+    }
   }
 }
 

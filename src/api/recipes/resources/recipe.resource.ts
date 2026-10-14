@@ -12,7 +12,10 @@ export interface KbjuDto {
 export interface IngredientDto {
   id: string
   amount: string // «44», «1», «по вкусу»
-  name: string
+  name: string // у заголовка группы — название группы (может быть пустым)
+  // Заголовок группы ингредиентов: строки после него (до следующего заголовка)
+  // — одна группа. Нет заголовков — вся секция одна группа (старые рецепты).
+  is_group?: boolean
 }
 
 export interface SubstitutionDto {

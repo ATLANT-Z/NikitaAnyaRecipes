@@ -14,6 +14,10 @@ export class RecipeFactory {
   static ingredient(): IngredientDto {
     return { id: uuid(), amount: '', name: '' }
   }
+  // Заголовок группы ингредиентов (название — в name).
+  static ingredientGroup(): IngredientDto {
+    return { id: uuid(), amount: '', name: '', is_group: true }
+  }
   static substitution(): SubstitutionDto {
     return { id: uuid(), marker: '*', text: '' }
   }
