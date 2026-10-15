@@ -66,27 +66,33 @@ const hasInfo = computed(
           {{ checkedCount }}/{{ items.length }}
         </span>
       </p>
-      <div v-for="(g, gi) in groups" :key="g.key" class="ing-group">
-        <p
-          v-if="hasDivider(gi)"
-          class="ing-group__divider"
-          :class="{ 'ing-group__divider--plain': !g.header?.name.trim() }"
-        >
-          <span v-if="g.header?.name.trim()" class="ing-group__title">{{ g.header.name }}</span>
-        </p>
-        <ul class="ing-group__list">
-          <li v-for="{ ing } in g.items" :key="ing.id">
-            <AppCheckbox
-              block
-              dense
-              :model-value="isChecked(ing.id)"
-              @update:model-value="onSet(ing.id, $event)"
-            >
-              <span v-if="ing.amount" class="ing__amount">{{ ing.amount }}</span>
-              {{ ing.name }}
-            </AppCheckbox>
-          </li>
-        </ul>
+      <!-- Группы и разделители — соседи в одной колонке с gap: расстояние
+           над и под пунктиром одинаковое по построению (без margin). -->
+      <div class="ing-groups">
+        <template v-for="(g, gi) in groups" :key="g.key">
+          <p
+            v-if="hasDivider(gi)"
+            class="ing-divider"
+            :class="{ 'ing-divider--plain': !g.header?.name.trim() }"
+          >
+            <span v-if="g.header?.name.trim()" class="ing-divider__title">
+              {{ g.header.name }}
+            </span>
+          </p>
+          <ul class="ing-list">
+            <li v-for="{ ing } in g.items" :key="ing.id">
+              <AppCheckbox
+                block
+                dense
+                :model-value="isChecked(ing.id)"
+                @update:model-value="onSet(ing.id, $event)"
+              >
+                <span v-if="ing.amount" class="ing-list__amount">{{ ing.amount }}</span>
+                {{ ing.name }}
+              </AppCheckbox>
+            </li>
+          </ul>
+        </template>
       </div>
 
       <!-- Замены — сразу под ингредиентами, к которым относятся -->
@@ -263,55 +269,54 @@ const hasInfo = computed(
   }
 }
 
-// Группа ингредиентов: строки идут плотно, пунктир — только между группами.
-.ing-group {
+// Колонка «группа · пунктир · группа». Все вертикальные расстояния — gap
+// родителя; у детей нет внешних отступов → над и под пунктиром поровну.
+.ing-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+// Строки группы стоят вплотную; интервал даёт симметричный padding строки
+// (он же — зона тапа), поэтому и у краёв группы отступ одинаковый.
+.ing-list {
+  list-style: none;
   display: flex;
   flex-direction: column;
 
-  & + & {
-    margin-top: 8px;
-  }
-
-  &__divider {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 4px;
-    color: color-mix(in srgb, $color-peach 70%, $color-text);
-    font-size: 12px;
+  &__amount {
+    margin-right: 4px;
+    color: $color-muted;
     font-weight: 700;
-
-    // Пунктир слева и справа от названия (или сплошной, если названия нет).
-    &::before,
-    &::after {
-      content: '';
-      flex: 1;
-      border-top: 1.5px dashed $color-peach;
-    }
-    &--plain {
-      margin: 2px 0 6px;
-      &::after {
-        display: none;
-      }
-    }
+    font-variant-numeric: tabular-nums;
   }
+}
+
+// Пунктир между группами; без названия — просто линия (высота = линия).
+.ing-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: color-mix(in srgb, $color-peach 70%, $color-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-top: 1.5px dashed $color-peach;
+  }
+  &--plain::after {
+    display: none;
+  }
+
   &__title {
     flex: 0 1 auto;
     max-width: 70%;
     text-align: center;
   }
-
-  &__list {
-    list-style: none;
-  }
-}
-
-// Строка ингредиента в одну линию: «195 г молоко кокосовое».
-.ing__amount {
-  margin-right: 4px;
-  color: $color-muted;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
 .step {

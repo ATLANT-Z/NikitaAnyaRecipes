@@ -44,16 +44,19 @@ defineProps<{ label?: string; block?: boolean; dense?: boolean }>()
       min-width: 0;
     }
   }
+  // Плотная строка: без min-height, интервал — симметричный padding
+  // (одинаково сверху и снизу), текст — как в шагах рецепта (16px).
   &--dense {
-    min-height: 34px;
+    min-height: 0;
+    padding: 4px 0;
     gap: 10px;
     .check__box {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
     }
     .check__label {
-      font-size: 14px;
-      line-height: 1.35;
+      font-size: 16px;
+      line-height: 1.4;
     }
   }
 

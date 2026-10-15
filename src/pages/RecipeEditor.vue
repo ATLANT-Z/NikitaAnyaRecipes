@@ -913,7 +913,7 @@ function removePhoto(i: number) {
 
 .ed-section {
   @include card($radius-lg);
-  padding: 16px 16px 18px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -958,8 +958,10 @@ function removePhoto(i: number) {
   flex-direction: column;
   gap: 10px;
 
+  // Пунктир между блоками: над линией — gap секции (12px), под ней —
+  // такой же padding. Отступы равны, без margin.
   & + & {
-    padding-top: 14px;
+    padding-top: 12px;
     border-top: 1px dashed $color-border;
   }
 
@@ -990,9 +992,9 @@ function removePhoto(i: number) {
   flex-direction: column;
   gap: 8px;
 
+  // Над пунктиром — gap блока (10px), под ним — такой же padding.
   & + & {
-    margin-top: 6px;
-    padding-top: 14px;
+    padding-top: 10px;
     border-top: 1.5px dashed $color-peach;
   }
 
