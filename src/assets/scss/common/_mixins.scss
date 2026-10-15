@@ -1,9 +1,10 @@
 @use 'sass:color';
 @use 'variables' as *;
 
-// Плавный переход по умолчанию
-@mixin anim($props: all, $dur: $anim) {
-  transition: $props $dur $ease-soft;
+// Плавный переход по умолчанию — без перелёта (иначе цвета мигают).
+// Нужен отскок движения — передай $ease-soft явно.
+@mixin anim($props: all, $dur: $anim, $ease: $ease-out) {
+  transition: $props $dur $ease;
 }
 
 // Карточка-«крем»: мягкая поверхность + свет

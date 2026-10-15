@@ -26,6 +26,13 @@ const items = computed(() => IngredientGroups.items(props.section.ingredients))
 const hasDivider = (gi: number) =>
   !!groups.value[gi].header?.name.trim() || (gi > 0 && groups.value.length > 1)
 
+const stepsDone = computed(
+  () => props.section.steps.filter((_, i) => props.isChecked(stepKey(i))).length,
+)
+const isAllStepsDone = computed(
+  () => props.section.steps.length > 0 && stepsDone.value === props.section.steps.length,
+)
+
 const checkedCount = computed(() => items.value.filter((i) => props.isChecked(i.id)).length)
 const isAllChecked = computed(
   () => items.value.length > 0 && checkedCount.value === items.value.length,
@@ -105,7 +112,16 @@ const hasInfo = computed(
 
     <!-- Шаги: тап отмечает сделанный -->
     <div v-if="section.steps.length" class="section__block">
-      <p class="section__caption"><ChefHat :size="16" /> Приготовление</p>
+      <p class="section__caption">
+        <ChefHat :size="16" /> Приготовление
+        <span
+          class="section__progress"
+          :class="{ 'section__progress--done': isAllStepsDone }"
+          :aria-label="`Сделано ${stepsDone} из ${section.steps.length}`"
+        >
+          {{ stepsDone }}/{{ section.steps.length }}
+        </span>
+      </p>
       <ol class="section__steps">
         <li v-for="(step, i) in section.steps" :key="i">
           <button
@@ -113,6 +129,7 @@ const hasInfo = computed(
             class="step"
             :class="{ 'step--done': isChecked(stepKey(i)) }"
             :aria-pressed="isChecked(stepKey(i))"
+            :aria-label="`Шаг ${i + 1}: ${isChecked(stepKey(i)) ? 'сделано' : 'отметить сделанным'}`"
             @click="onSet(stepKey(i), !isChecked(stepKey(i)))"
           >
             <span class="step__num">
@@ -319,11 +336,14 @@ const hasInfo = computed(
   }
 }
 
+// Шаг — отмечаемый пункт: номер в обведённом кружке (как пустой чекбокс),
+// сделан — зелёная заливка с галочкой. Подсветка наведения — только для мыши
+// (на тач-экране :hover залипает после тапа).
 .step {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 10px 8px;
+  padding: 8px;
   margin: 0 -8px;
   width: calc(100% + 16px);
   border-radius: $radius;
@@ -332,8 +352,17 @@ const hasInfo = computed(
   -webkit-tap-highlight-color: transparent;
   @include anim(background-color);
 
-  &:hover {
-    background: $color-surface-2;
+  @media (hover: hover) {
+    &:hover {
+      background: $color-surface-2;
+      .step__num {
+        border-color: $color-success;
+      }
+    }
+  }
+  &:focus-visible {
+    outline: 2px solid $color-accent;
+    outline-offset: 2px;
   }
 
   &__num {
@@ -344,12 +373,13 @@ const hasInfo = computed(
     align-items: center;
     justify-content: center;
     border-radius: $radius-pill;
-    background: $color-accent-dim;
-    color: color-mix(in srgb, $color-accent 70%, $color-text);
+    border: 2px solid $color-border;
+    background: $color-surface;
+    color: $color-muted;
     font-weight: 800;
-    font-size: 13px;
+    font-size: 12px;
     @include anim(background-color);
-    transition-property: background-color, color;
+    transition-property: background-color, border-color, color;
   }
   &__text {
     flex: 1;
@@ -359,6 +389,7 @@ const hasInfo = computed(
   &--done {
     .step__num {
       background: $color-success;
+      border-color: $color-success;
       color: #fff;
     }
     .step__text {
