@@ -22,7 +22,11 @@ const { data, actions } = useFavorites()
           :alt="recipe.title"
         />
       </div>
-      <span class="recipe-card__title">{{ recipe.title }}</span>
+      <!-- padding — на обёртке: line-clamp вместе с padding «просвечивает»
+           следующую строку в нижнем отступе -->
+      <span class="recipe-card__caption">
+        <span class="recipe-card__title">{{ recipe.title }}</span>
+      </span>
     </RouterLink>
 
     <button
@@ -61,12 +65,15 @@ const { data, actions } = useFavorites()
     aspect-ratio: 1 / 1;
   }
 
-  &__title {
+  &__caption {
     display: block;
     padding: 12px 14px;
+  }
+  &__title {
     font-weight: 700;
     font-size: 16px;
-    @include clamp-lines(1);
+    line-height: 1.3;
+    @include clamp-lines(2);
   }
 
   &__fav {

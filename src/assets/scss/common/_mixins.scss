@@ -32,7 +32,9 @@
   line-height: 1.2;
 }
 
-// Обрезка текста в N строк
+// Обрезка текста в N строк.
+// Не вешать на элемент с вертикальным padding: overflow режет по padding-box,
+// и (N+1)-я строка просвечивает в нижнем отступе. Padding — на обёртку.
 @mixin clamp-lines($n: 2) {
   display: -webkit-box;
   -webkit-line-clamp: $n;
